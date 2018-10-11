@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+
+<html>
+	<!-- En tête -->
+	<head>
+		<!-- Fichiers CSS -->
+		<link rel='stylesheet' type='text/css' href='./css/web.css' media='screen' />
+
+		<!-- Fichiers Javascripts -->
+	<script type='text/javascript' src='./js/jquery-2.0.3.min.js'></script>
+		<!-- 	<script type='text/javascript' src='./js/web.js'></script>  -->
+
+		<!-- Encodage UTF8 pour les accents -->
+		<meta charset='UTF-8'>
+
+		<!-- Icône de l'onglet -->
+		<!-- <link rel='icon' type='image/png' href='./images/favicon.png' /> -->
+
+		<!-- Titre de l'onglet -->
+		<title></title>
+	</head>
+
+
+	<!-- Corps du document -->
+	<body>
+
+<script>
+$(document).ready(function(){
+//Declarations
+var canvas, context, width, height, frames = 0, floor, floor_position, actual_status = "play", character, character_position, game_velocity = 6, jump_force = 20,
+maxJump = 1, background, players;
+var actionLeft = actionRight = actionJump = action = actionHold = actionBomb = actionEsc = startAction = false;
+
+
+//Class floor
+class Floor{
+	constructor(position_floor, width_floor, height_floor){
+		this.position = position_floor;
+		this.height = height_floor;
+		this.width = width_floor;
+		this.color = "#ffdf70";
+	}
+
+	//Drawing the floor
+	draw_floor(){
+		context.fillStyle = this.color;
+		context.fillRect(this.position.x, this.position.y, this.width, this.height);
+	}
+
+}
+
+//Class position
+class Position{
+	constructor(x_const, y_const){
+		this.x = x_const;
+		this.y = y_const;
+	}
+
+		right(){
+			if(this.x < width-50 ){
+				this.x += game_velocity;
+			} else if (this.x >= width-50 ){
+				this.x = width-50;
+			}
+
+		}
+
+		left(){
+			if(this.x > 0 ){
+				this.x -= game_velocity;
+			} else if (this.x <= 0 ){
+				this.x = 0;
+			}
+		}
+
+		jump(object){
+			if(object.number_of_jump < maxJump){
+				object.velocity = -jump_force;
+			}
+		}
+
+	}
+
+//Class Player
+class Player{
+	constructor(id, name, color){
+		this.id = id
+		this.name = name;
+		this.velocity = 0;
+		this.width = 50;
+		this.height = 50;
+		this.gravity = 1;
+		this.color = color;
+		this.position = new Position(Math.floor(width * Math.random()), Math.floor(height * Math.random()));
+		this.number_of_jump = 0;
+	}
+
+
+	draw_character(){
+		// var character_icon = new Image();
+		// character_icon.src = "./images/character.png";
+		// context.drawImage(character_icon, -this.width/2, -this.height/2);
+
+		context.fillStyle = this.color;
+		context.fillRect(this.position.x, this.position.y, this.width, this.height);
+	};
+
+	refresh_character(){
+		this.velocity += this.gravity;
+		this.position.y += this.velocity;
+
+
+		if (this.position.y > (floor.position.y - this.height) && actual_status != "lost"){
+			this.position.y = floor.position.y - this.height;
+			this.velocity = 0;
+			this.number_of_jump = 0;
+		}
+
+	};
+
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////Starting the Script//////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+function main(){
+	actual_status = "play";
+
+	//Getting window information(height and width)
+			height = window.innerHeight;
+			width = window.innerWidth;
+
+	//Creating the canvas
+	canvas = document.createElement("canvas");
+	canvas.height = height;
+	canvas.width = width;
+
+	canvas.style.border = "1px solid red";
+
+	context = canvas.getContext("2d");
+
+	//Adding canvas to html
+	document.body.appendChild(canvas);
+
+	menu();
+
+	floor_position = new Position(0, 550);
+	floor = new Floor(floor_position, width, 50);
+
+}
+
+function menu(){
+	console.log(floor);
+		drawSun();
+
+		start();
+}
+
+
+main();
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////Let game playing////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Verify wich key was pressed and assing tru to tell that this key is being pressed
+function keyDown(e){
+	var right = 39, left = 37, space = 32, bomb = 68, coup = 81, hold = 90, esc = 27;
+
+	if (e.keyCode == right){
+		actionRight = true;
+	} else if(e.keyCode == left){
+		actionLeft = true;
+	} else if(e.keyCode == space){
+		actionJump = true;
+	} else if(e.keyCode == bomb){
+		actionBomb = true;
+	} else if(e.keyCode == coup){
+		action = true;
+	} else if(e.keyCode == hold){
+		actionHold = true;
+	} else if(e.keyCode == esc){
+		actionEsc = true;
+	}
+}
+
+//Verify wich key was released and assing false to tell that this key stop being pressed
+function keyUp(e){
+	var right = 39, left = 37, space = 32, bomb = 68, coup = 81, hold = 90, esc = 27;
+
+	if (e.keyCode == right){
+		actionRight = false;
+	} else if(e.keyCode == left){
+		actionLeft = false;
+	} else if(e.keyCode == space){
+		actionJump = false;
+	} else if(e.keyCode == bomb){
+		actionBomb = false;
+	} else if(e.keyCode == coup){
+		action = false;
+	} else if(e.keyCode == hold){
+		actionHold = false;
+	} else if(e.keyCode == esc){
+		actionEsc = false;
+	}
+}
+
+//Mouve the character
+function mouve(){
+	if (actionLeft){
+		character.position.left();
+	} else if(actionRight){
+		character.position.right();
+	} else if(actionJump){
+		if(character.number_of_jump < maxJump){
+			character.position.jump(character);
+			character.number_of_jump++;
+		}
+
+	} else if(action){
+		//character.bomb();
+	} else if(actionHold){
+		//character.coup();
+	} else if(actionBomb){
+		//character.hold();
+	} else if(actionEsc){
+	}
+}
+
+
+
+
+function refresh(){
+}
+
+//Function play is the function wich permit to the game to have an infinite loop
+function start(){
+	//Permit to request for commands
+//	sendAjax();
+
+	refresh();
+	draw();
+
+	window.requestAnimationFrame(start);
+}
+
+function draw(){
+//	floor.draw_floor();
+}
+
+
+
+
+
+//SENDING AJAX to request for commands
+function sendAjax_commands() {
+	// Remplissage objet JSON
+	var player_id = 1;
+
+	//tableau
+	var jsonObject = {'player_id': player_id};
+
+	// Serialise objet JSON
+	var clientData = JSON.stringify(jsonObject);
+
+	// Envoyer donnees JSON
+	jQuery.ajax({type: "POST", url: "receiveAjax.php", dataType: "JSON", data: 'clientData=' + clientData,
+		success: function(serverData) {
+			// Traiter reponse serveur
+			receiveAjax(serverData);
+		}
+	});
+}
+
+//SENDING AJAX to request for players
+function sendAjax_players() {
+	// Remplissage objet JSON
+	var player_id = 1;
+
+	//tableau
+	var jsonObject = {'player_id': player_id};
+
+	// Serialise objet JSON
+	var clientData = JSON.stringify(jsonObject);
+
+	// Envoyer donnees JSON
+	jQuery.ajax({type: "POST", url: "receiveAjax.php", dataType: "JSON", data: 'clientData=' + clientData,
+		success: function(serverData) {
+			// Traiter reponse serveur
+			receiveAjax(serverData);
+		}
+	});
+}
+
+//RECEIVING AJAX
+function receiveAjax_commands(serverData) {
+	// Tableau de données
+	if (defined(serverData)) {
+		for (val of serverData) {
+			if(val.order.order == "right"){
+				actionRight = true;
+			} else if (val.order.order == "left"){
+				actionLeft = true;
+			}	else if(val.order.order == "jumps"){
+				actionJump = true;
+			} else if(val.order.order == "bomb"){
+				actionBomb = true;
+			} else if(val.order.order == "action"){
+				action = true;
+			} else if(val.order.order == "hold"){
+				actionHold = true;
+			} else if(val.order.order == "esc"){
+				actionEsc = true;
+			} else if(val.order.order == "start"){
+				startAction = true;
+			}
+		}
+	}
+}
+
+
+//Draw a sun
+function drawSun() {
+  var rg = context.createRadialGradient(1100, 64, 48, 1100, 64, 64);
+	//sun color
+  rg.addColorStop(0, 'white');
+  rg.addColorStop(1, 'rgba(255, 255, 0, 0)');
+  context.fillStyle = rg;
+  context.fillRect(1000, 0, 200, 200);
+}
+
+
+//test if a variable is defined
+function defined(myVar) {
+	if (typeof myVar != 'undefined') return true;
+	return false;
+}
+
+
+
+});
+</script>
+
+
+
+
+
+
+
+		<!-- Wrapper -->
+		<div class='wrapper'>
+
+
+		</div>
+	</body>
+</html>
