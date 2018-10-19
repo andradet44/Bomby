@@ -8,13 +8,12 @@
 
 		<!-- Fichiers Javascripts -->
 	<script type='text/javascript' src='./js/jquery-2.0.3.min.js'></script>
-		<!-- 	<script type='text/javascript' src='./js/web.js'></script>  -->
 
 		<!-- Encodage UTF8 pour les accents -->
 		<meta charset='UTF-8'>
 
 		<!-- Icône de l'onglet -->
-		<!-- <link rel='icon' type='image/png' href='./images/favicon.png' /> -->
+		<link rel='icon' type='image/png' href='./images/background_bomb.png' />
 
 		<!-- Titre de l'onglet -->
 		<title></title>
@@ -23,22 +22,23 @@
 
 	<!-- Corps du document -->
 	<body>
-
 <script>
 $(document).ready(function(){
 //Declarations
-var canvas, context, width, height, frames = 0, floor, floor_position, actual_status = "play", character, character_position, game_velocity = 6, jump_force = 20,
-maxJump = 1, background, players;
-var actionLeft = actionRight = actionJump = action = actionHold = actionBomb = actionEsc = startAction = false;
+canvas = "", context = "", width = 0, height = 0, frames = 0, obstacle_list = [], players_list = [], floor_position = 0, actual_status = "play", character = "",
+character_position = "", game_velocity = 6, jump_force = 20, actual_id = 0,
+maxJump = 1, background = "", players = "";
+actionLeft = actionRight = actionJump = action = actionHold = actionBomb = actionSelect = startAction = false;
 
 
-//Class floor
-class Floor{
-	constructor(position_floor, width_floor, height_floor){
+//Class Obstacle
+class Obstacle{
+	constructor(id, position_floor, width_floor, height_floor){
+		this.id = id;
 		this.position = position_floor;
 		this.height = height_floor;
 		this.width = width_floor;
-		this.color = "#ffdf70";
+		this.color = "black";
 	}
 
 	//Drawing the floor
@@ -84,19 +84,28 @@ class Position{
 //Class Player
 class Player{
 	constructor(id, name, color){
-		this.id = id
+		this.id = id;
 		this.name = name;
 		this.velocity = 0;
 		this.width = 50;
 		this.height = 50;
 		this.gravity = 1;
+		this.nb_alea = Math.floor(50 * Math.random());
+		if(color == "default"){
+			this.color = "#5858FA";
+		}
 		this.color = color;
-		this.position = new Position(Math.floor(width * Math.random()), Math.floor(height * Math.random()));
+		if(this.nb_alea <= 25){
+			this.position = new Position(50, 0);
+		} else if(this.nb_alea > 25){
+			this.position = new Position(width - 100, 0);
+		}
 		this.number_of_jump = 0;
 	}
 
 
-	draw_character(){
+
+	draw_player(){
 		// var character_icon = new Image();
 		// character_icon.src = "./images/character.png";
 		// context.drawImage(character_icon, -this.width/2, -this.height/2);
@@ -105,7 +114,7 @@ class Player{
 		context.fillRect(this.position.x, this.position.y, this.width, this.height);
 	};
 
-	refresh_character(){
+	refresh_player(){
 		this.velocity += this.gravity;
 		this.position.y += this.velocity;
 
@@ -121,21 +130,18 @@ class Player{
 }
 
 
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////Starting the Script//////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 function main(){
-	actual_status = "play";
-
 	//Getting window information(height and width)
-			height = window.innerHeight;
-			width = window.innerWidth;
+	height = window.innerHeight;
+	width = window.innerWidth;
 
 	//Creating the canvas
 	canvas = document.createElement("canvas");
-	canvas.height = height;
-	canvas.width = width;
+	canvas.height = height - 25;
+	canvas.width = width - 20;
 
 	canvas.style.border = "1px solid red";
 
@@ -144,22 +150,49 @@ function main(){
 	//Adding canvas to html
 	document.body.appendChild(canvas);
 
+	//To avoid a flor to be confused with another one
+	var last_position = 0;
+	for (var id = 0; id < 10; id++){
+		var condition = true;
+		do{
+			floor_position = new Position(Math.floor(width * Math.random()), Math.floor((height - 100) * Math.random()));
+
+			if(last_position == 0){
+				last_position = floor_position;
+			}
+
+			if(floor_position.y <  last_position.y + 60 || floor_position.y > last_position.y + 60){
+				condition = false;
+			}
+
+		} while (condition);
+
+		last_position = floor_position;
+
+		floor = new Obstacle(id, floor_position, 200, 50);
+		obstacle_list.push(floor);
+	}
 	menu();
-
-	floor_position = new Position(0, 550);
-	floor = new Floor(floor_position, width, 50);
-
 }
 
 function menu(){
-	console.log(floor);
-		drawSun();
+		background = new Image();
+		background.src = "./images/background.jpg";
+
+		//When image loaded
+		background.onload = function()
+		{
+			context.drawImage(background, 0, 0, width, height);
+		}
+
+		//drawSun();
+
+		document.addEventListener("keydown", keyDown);
+		document.addEventListener("keyup", keyUp);
 
 		start();
+
 }
-
-
-main();
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -168,7 +201,7 @@ main();
 
 //Verify wich key was pressed and assing tru to tell that this key is being pressed
 function keyDown(e){
-	var right = 39, left = 37, space = 32, bomb = 68, coup = 81, hold = 90, esc = 27;
+	var right = 39, left = 37, space = 32, bomb = 68, coup = 81, hold = 90, select = 27;
 
 	if (e.keyCode == right){
 		actionRight = true;
@@ -182,14 +215,28 @@ function keyDown(e){
 		action = true;
 	} else if(e.keyCode == hold){
 		actionHold = true;
-	} else if(e.keyCode == esc){
-		actionEsc = true;
+	} else if(e.keyCode == select){
+		actionSelect = true;
+
+		//Adding player before start game
+		if(actionSelect && actual_status == "play"){
+			var new_player = new Player(actual_id, "player"+actual_id, "default");
+			players_list.push(new_player)
+			actual_id += 1;
+
+			var menu_modal = document.getElementById("menu");
+
+			var player_name = document.createElement("h1");
+			var newContent = document.createTextNode(new_player.name);
+			player_name.appendChild(newContent);
+			menu_modal.appendChild(player_name);
+		}
 	}
 }
 
 //Verify wich key was released and assing false to tell that this key stop being pressed
 function keyUp(e){
-	var right = 39, left = 37, space = 32, bomb = 68, coup = 81, hold = 90, esc = 27;
+	var right = 39, left = 37, space = 32, bomb = 68, coup = 81, hold = 90, select = 27;
 
 	if (e.keyCode == right){
 		actionRight = false;
@@ -203,8 +250,8 @@ function keyUp(e){
 		action = false;
 	} else if(e.keyCode == hold){
 		actionHold = false;
-	} else if(e.keyCode == esc){
-		actionEsc = false;
+	} else if(e.keyCode == select){
+		actionSelect = false;
 	}
 }
 
@@ -230,16 +277,16 @@ function mouve(){
 	}
 }
 
-
-
-
 function refresh(){
+	for (var id = 0; id < players_list.length; id++){
+		players_list[id].refresh_player();
+	}
 }
 
 //Function play is the function wich permit to the game to have an infinite loop
 function start(){
 	//Permit to request for commands
-//	sendAjax();
+	sendAjax_commands();
 
 	refresh();
 	draw();
@@ -248,18 +295,29 @@ function start(){
 }
 
 function draw(){
-//	floor.draw_floor();
+
+	if(actual_status == "playing"){
+			jQuery("#menu").hide();
+
+		for (var id = 0; id < obstacle_list.length; id++){
+			obstacle_list[id].draw_floor();
+		}
+	}
+
+	if(actual_status == "play"){
+		jQuery("#menu").show();
+	}
+
+	for (var id = 0; id < players_list.length; id++){
+		players_list[id].draw_player();
+	}
+
 }
 
 
 
-
-
 //SENDING AJAX to request for commands
-function sendAjax_commands() {
-	// Remplissage objet JSON
-	var player_id = 1;
-
+function sendAjax_commands(player_id = 1) {
 	//tableau
 	var jsonObject = {'player_id': player_id};
 
@@ -270,7 +328,7 @@ function sendAjax_commands() {
 	jQuery.ajax({type: "POST", url: "receiveAjax.php", dataType: "JSON", data: 'clientData=' + clientData,
 		success: function(serverData) {
 			// Traiter reponse serveur
-			receiveAjax(serverData);
+			receiveAjax_commands(serverData);
 		}
 	});
 }
@@ -288,11 +346,11 @@ function sendAjax_players() {
 
 	// Envoyer donnees JSON
 	jQuery.ajax({type: "POST", url: "receiveAjax.php", dataType: "JSON", data: 'clientData=' + clientData,
-		success: function(serverData) {
-			// Traiter reponse serveur
-			receiveAjax(serverData);
-		}
-	});
+	success: function(serverData) {
+		// Traiter reponse serveur
+		receiveAjax(serverData);
+	}
+});
 }
 
 //RECEIVING AJAX
@@ -316,6 +374,7 @@ function receiveAjax_commands(serverData) {
 				actionEsc = true;
 			} else if(val.order.order == "start"){
 				startAction = true;
+				actual_status = "playing";
 			}
 		}
 	}
@@ -323,13 +382,13 @@ function receiveAjax_commands(serverData) {
 
 
 //Draw a sun
-function drawSun() {
-  var rg = context.createRadialGradient(1100, 64, 48, 1100, 64, 64);
+function drawSun(){
+	var rg = context.createRadialGradient(1100, 64, 48, 1100, 64, 64);
 	//sun color
-  rg.addColorStop(0, 'white');
-  rg.addColorStop(1, 'rgba(255, 255, 0, 0)');
-  context.fillStyle = rg;
-  context.fillRect(1000, 0, 200, 200);
+	rg.addColorStop(0, 'white');
+	rg.addColorStop(1, 'rgba(255, 255, 0, 0)');
+	context.fillStyle = rg;
+	context.fillRect(1000, 0, 200, 200);
 }
 
 
@@ -341,19 +400,25 @@ function defined(myVar) {
 
 
 
+
+
+main();
+
 });
 </script>
+		<div class="modal">
+				<table class="menu" id="menu">
+						<td> Instructions : connect your phone to the console </td>
+					</tr>
+					<tr>
+						<td> and press select to join the game ! </td>
+					</tr>
+					<tr>
+						<td> Press Start to begin the game </td>
+					</tr>
+				</table>
+				<!-- <img class='background_bomb' src='./images/background_bomb.png'> -->
+			</div>
 
-
-
-
-
-
-
-		<!-- Wrapper -->
-		<div class='wrapper'>
-
-
-		</div>
 	</body>
 </html>
