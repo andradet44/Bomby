@@ -4,7 +4,7 @@
 
 // AJAX 1
 $clientData = json_decode($_POST['clientData'], true);
-$player_id = $clientData['player_id'];
+$none_value = $clientData['none_value'];
 
 //////////////////////////////////////////////////////////////////////////////////////
 // Ouverture BD
@@ -16,13 +16,13 @@ include_once("dbConfig.php");
 $mysqli = new mysqli(DB_HOST, DB_LOGIN, DB_PWD, DB_NAME);
 
 // Requète
-$order_request = "SELECT * FROM `orders` WHERE `player_id` = '$player_id';";
+$order_request = "SELECT * FROM `orders` inner join `players` on `orders`.`player_id` = `players`.`player_id` group by `orders`.`player_id`, `order`";
 $result = $mysqli->query($order_request);
 
 $orders = [];
 while ($line = $result->fetch_assoc()) {
-$orders = $line;
-
+	 // $orders->append($line);
+	 array_push($orders, $line);
 }
 
 

@@ -22,38 +22,19 @@
 
 
 	<!-- Corps du document -->
-	<body class="body">
-		<audio  id="sound_hit" preload="auto">
-			<source src="./sounds/hit.mp3">
-		</audio>
-
-		<audio  id="sound_explosion" preload="auto">
-			<source src="./sounds/explosion.wav">
-		</audio>
+	<body>
 <script>
 $(document).ready(function(){
 //Declarations
-canvas = "", context = "", width = 0, height = 0, frames = 0, obstacle_list = [], commands_list = [], bombs_list = [],
-players_list = [], power_boxs_list = [] , floor_position = 0, actual_status = "play", game_end = 0;
-game_velocity = 6, jump_force = 20, floor = "" , sprite_position = 0, winner_name = "anyone", winner_score = 0,
-maxJump = 1, background = "";
-actionSelect = startAction = false;
+canvas = "", context = "", width = 0, height = 0, frames = 0, obstacle_list = [], commands_list = [],
+players_list = [], power_boxs_list = [] , floor_position = 0, actual_status = "play",
+game_velocity = 6, jump_force = 20, actual_id = 0, floor = "" ,
+maxJump = 1, background = "", controller_id = 0;
+actionLeft = actionRight = actionJump = hit = actionHold = actionBomb = actionSelect = startAction = false;
 //TODO: delete
 //obstacle_test = "";
 
-class Game_time{
-	constructor(minute, second){
-		this.second = second;
-		this.minute = minute;
-	}
-}
-
-
 class Power_Box{
-	//TODO: gerer quand quelqu'un gagne
-	//Gerer les points
-
-	//TODO: add bombs
 	constructor(){
 		this.name = "";
 		this.velocity = 0;
@@ -72,53 +53,23 @@ class Power_Box{
 
 		//Power color
 		if(this.power == 1){
-			//Dead black
 			this.color = "#000000";
+			this.name = "you died";
 		} else if(this.power == 2){
-			//More damage orange
 			this.color = "#FF8000";
 		} else if(this.power == 3){
-			//Life green
 			this.color = "#40FF00";
 		} else if(this.power == 4){
-			//shield blue
 			this.color = "#2EFEF7";
 		} else if(this.power == 5){
-			//Sticky Bomb purple
 			this.color = "#CC2EFA";
 		}
 	}
 
 	//Drawing the power box
 	draw_power_box(){
-			if(this.power == 1){
-				var death = new Image();
-				death.src = "./images/death.png";
-
-				context.drawImage(death,this.position.x, this.position.y, 50, 50);
-			}
-
-			if(this.power == 2){
-				var glove_box = new Image();
-				glove_box.src = "./images/glove_box.png";
-
-				context.drawImage(glove_box,this.position.x, this.position.y, 50, 50);
-			}
-
-			if(this.power == 3){
-				var health = new Image();
-				health.src = "./images/health.png";
-
-				context.drawImage(health,this.position.x, this.position.y, 50, 50);
-			}
-
-			if(this.power == 4){
-				var shield = new Image();
-				shield.src = "./images/shield.png";
-
-				context.drawImage(shield,this.position.x, this.position.y, 50, 50);
-			}
-
+			context.fillStyle = this.color;
+			context.fillRect(this.position.x, this.position.y, 50, 50);
 	}
 
 	//Refreshing the power box
@@ -131,8 +82,8 @@ class Power_Box{
 			var actual_obstacle = obstacle_list[id];
 			if(this.position.x + 50 >= actual_obstacle.position.x && (this.position.x) <= (actual_obstacle.position.x + actual_obstacle.width)){
 				if((this.position.y + 50) > actual_obstacle.position.y && (this.position.y + 50) < (actual_obstacle.position.y + actual_obstacle.height)){
-					this.velocity = 0;
 					this.position.y = actual_obstacle.position.y - 50;
+					this.velocity = 0;
 				}
 			}
 		}
@@ -160,10 +111,8 @@ class Obstacle{
 
 	//Drawing the Obstacle
 	draw_obstacle(){
-		var obstacle = new Image();
-		obstacle.src = "./images/platform.png";
-
-		context.drawImage(obstacle,this.position.x, this.position.y, this.width, this.height);
+		context.fillStyle = this.color;
+		context.fillRect(this.position.x, this.position.y, this.width, this.height);
 	}
 
 }
@@ -177,7 +126,7 @@ class Position{
 
 	right(){
 		//Move right
-		if(this.x < width-50 ){ //Avoid player to past the right side
+		if(this.x < width-50 ){
 			this.x += game_velocity;
 
 			//Collisions by left
@@ -190,7 +139,7 @@ class Position{
 				}
 			}
 
-		} else if (this.x >= width-50 ){ //Avoid player to past the right side
+		} else if (this.x >= width-50 ){
 			this.x = width-50;
 		}
 
@@ -217,35 +166,14 @@ class Position{
 		}
 	}
 
-//Class bomb
-// class Bomb{
-// 	constructor(x, y){
-// 		this.position = new Position(x, y);
-// 		this.time = 5;
-// 	}
-//
-// 	draw_bomb(){
-// 		var bomb = new Image();
-// 		bomb.src = "./images/bomb.png";
-//
-// 		context.drawImage(bomb, this.position.x + 50, this.position.y + 50, 50, 50);
-// 	}
-//
-// 	draw_explosion(){
-// 		var explosion = new Image();
-// 		explosion.src = "./images/explode.png";
-//
-// 		context.drawImage(explosion, this.position.x + 50, this.position.y + 50, 50, 50);
-// 	}
-// }
-
 //Class Player
 class Player{
 	constructor(id, name, color){
 		this.id = id;
+		this.name = name;
 		this.velocity = 0;
 		this.width = 50;
-		this.height = 100;
+		this.height = 50;
 		this.gravity = 1;
 		this.nb_alea = Math.floor(50 * Math.random());
 		if(color == "default"){
@@ -262,123 +190,38 @@ class Player{
 		}
 		this.number_of_jump = 0;
 		this.power = 0;
-		this.shield = 0;
-		this.damage = 0.5;
-		this.time_reappear = 5;
-		this.time_power = 10;
+		this.time = 0;
 		this.life = 100;
-		this.score = 0;
-		this.sound_hit = document.getElementById('sound_hit');
-		this.sound_explosion = document.getElementById('sound_explosion');
-
-
-		//name
-		this.name = name;
-		this.name_position = new Position(0, 0);
-
-
-		//Actions
-		this.actionRight = false;
-		this.stepRight = 1;
-		this.actionLeft = false;
-		this.stepLeft = -1;
-		this.actionJump = false;
-		this.stepJump = 1;
-		this.actionBomb = false;
-		this.ActionHit = false;
-		this.actionHold = false;
-		this.up = false;
-		this.down = false;
 		this.direction = "right";
-		this.stand = true;
-		this.hitting = false;
 	}
 
+
+
 	draw_player(){
-		if(this.direction == "right"){
-			if(this.actionRight){
-				this.stepRight += 0.2;
-				this.actionRight = false;
-			}
-			if(this.stepRight >= 6){
-				this.stepRight = 1;
-			}
-
-			if(this.hitting){
-				var right = new Image();
-				right.src = "./images/hitRight/hitRight.png";
-
-				context.drawImage(right, this.position.x, this.position.y, 2 * this.width, this.height);
-			} else{
-				var right = new Image();
-				right.src = "./images/right/" + Math.floor(this.stepRight) + ".png";
-
-				context.drawImage(right, this.position.x, this.position.y, this.width, this.height);
-			}
-		}
-
-		if(this.direction == "left"){
-			if(this.actionLeft){
-				this.stepLeft -= 0.2;
-				this.actionLeft = false;
-			}
-			if(this.stepLeft <= -6){
-				this.stepLeft = -1;
-			}
-
-			if(this.hitting){
-				var left = new Image();
-				left.src = "./images/hitLeft/hitLeft.png";
-
-				context.drawImage(left, this.position.x - this.width, this.position.y, 2 * this.width, this.height);
-			} else{
-				var left = new Image();
-				left.src = "./images/left/" + Math.floor(this.stepLeft) + ".png";
-
-				context.drawImage(left, this.position.x, this.position.y, this.width, this.height);
-			}
-		}
-
-
 		context.fillStyle = this.color;
-		context.font = "20px Arial";
-		//context.textAlign = "center";
-		if(this.life > 0){
-			context.fillText(this.name + " " + this.life , this.name_position.x, this.name_position.y);
-		} else{
-			context.fillText(this.name + " reappearing in : " + this.time_reappear + " sec", 50, 50);
-		}
-
-		this.hitting = false;
+		context.fillRect(this.position.x, this.position.y, this.width, this.height);
 	}
 
 	refresh_player(){
 		if(this.life > 0){
-			//Refresh name position
-			this.name_position.y = this.position.y - 5;
-			this.name_position.x = this.position.x;
-
-
 			//Make Player jump
-			if(this.actionJump){
+			if(actionJump && this.id == controller_id){
 				this.velocity = -jump_force;
 
-				this.actionJump = false;
+				actionJump = false;
 			} else {
 				//Applying gravity
 				this.velocity += this.gravity;
 			}
 
 			//Getting a new power
-			if(this.power != 1){ //because power 1 is death
+			if(this.power != 1){
 				for(var i = 0; i < power_boxs_list.length; i++){
 					var actual_power_box = 	power_boxs_list[i];
 
 					if(this.position.x <= (actual_power_box.position.x + 50) && (this.position.x + 50) >= actual_power_box.position.x){
-						if((this.position.y + this.height) > actual_power_box.position.y && this.position.y < (actual_power_box.position.y + 50)){
-							if(actual_power_box.power != 3){
-								this.color = actual_power_box.color;
-							}
+						if((this.position.y + 50 ) > actual_power_box.position.y && this.position.y < (actual_power_box.position.y + 50)){
+							this.color = actual_power_box.color;
 							this.power = actual_power_box.power;
 							power_boxs_list.splice(i, i+1);
 						}
@@ -387,39 +230,27 @@ class Player{
 				}
 			}
 
-			//more damage power (2)
-			if(this.power == 2){
-				this.damage = 5;
-			}
+			this.time++;
 
-			//Heal player
-			if(this.power == 3){
-				this.life = 100;
-			}
-
-			//adding shield --> life + 50
-			if(this.power == 4 && this.shield == 0){
-				this.shield = 1;
-				this.life += 50;
+			//Reset power when time outed and make player reapear
+			if(this.time > 1000){
+					if(this.power == 1){
+						this.life = 0;
+					}
+					this.power = 0;
+					this.time = 0;
+					this.color = this.oldColor;
 			}
 
 			for (var id = 0; id < obstacle_list.length; id++){
 				var actual_obstacle = obstacle_list[id];
 
-				// //Permit the Player to get on a platform (collision by top)
-				if(this.position.x + 50 > (actual_obstacle.position.x + 5) && (this.position.x) <= (actual_obstacle.position.x + actual_obstacle.width - 5)){
-					if((this.position.y + this.height) > actual_obstacle.position.y && (this.position.y) < (actual_obstacle.position.y + 5)){
+				//Permit the Player to get on a platform
+				if(this.position.x + 50 >= actual_obstacle.position.x && (this.position.x) <= (actual_obstacle.position.x + actual_obstacle.width)){
+					if((this.position.y + 50) > actual_obstacle.position.y && (this.position.y + 50) < (actual_obstacle.position.y + actual_obstacle.height)){
+						this.position.y = actual_obstacle.position.y - 50;
 						this.velocity = 0;
-						this.position.y = actual_obstacle.position.y - this.height;
 						this.number_of_jump = 0;
-					}
-				}
-
-				//Collision by bottom
-				if(this.position.x + 50 > (actual_obstacle.position.x + 5) && (this.position.x) <= (actual_obstacle.position.x + actual_obstacle.width - 5)){
-					if((this.position.y) <= (actual_obstacle.position.y + actual_obstacle.height) && (this.position.y + this.height) > (actual_obstacle.position.y)){
-						this.velocity += this.gravity;
-						this.position.y = actual_obstacle.position.y + actual_obstacle.height;
 					}
 				}
 		}
@@ -449,7 +280,17 @@ class Player{
 	}
 
 	hit(){
-		this.hitting = true;
+		//Drawing left arm
+		if(this.direction == "left"){
+			context.fillStyle = this.color;
+			context.fillRect(this.position.x - 50, this.position.y + 10, this.width, 20);
+		}
+
+		//Drawing right arm
+		if(this.direction == "right"){
+			context.fillStyle = this.color;
+			context.fillRect(this.position.x + 50, this.position.y + 10, this.width, 20);
+		}
 
 		//Testing for all players
 		for (var id = 0; id < players_list.length; id++){
@@ -463,13 +304,9 @@ class Player{
 			actual_player.id != this.id &&
 			this.direction == "right"){
 
-				actual_player.life = actual_player.life - this.damage;
-				if(actual_player.life <= 0 && actual_player.time_reappear == 5){
-					this.score += 0.5;
-				}
+				actual_player.life = actual_player.life - 1;
 				actual_player.position.y = actual_player.position.y - 5;
 				actual_player.position.right();
-				actual_player.sound_hit.play();
 			}
 
 			//Hitting by right
@@ -480,34 +317,31 @@ class Player{
 			actual_player.id != this.id &&
 			this.direction == "left"){
 
-				actual_player.life = actual_player.life - this.damage;
+				actual_player.life = actual_player.life - 1;
 				actual_player.position.y = actual_player.position.y - 5;
 				actual_player.position.left();
-				actual_player.sound_hit.play();
+			}
+
+			if(actual_player.life <= 0 && actual_player.position.y > width){
+					actual_player.reapear();
 			}
 		}
+
 	}
 
-	reappear(){
+	reapear(){
 		for (var id = 0; id < players_list.length; id++){
 			var actual_player = players_list[id];
-			if(actual_player.life <= 0 && actual_player.position.y > width && actual_player.time_reappear == 0){
-				actual_player.velocity = actual_player.gravity;
+
+			if(actual_player.life <= 0 && actual_player.position.y > width){
 				actual_player.life = 100;
 				actual_player.position.y = 0;
 				actual_player.position.x = width/2;
 				actual_player.color = actual_player.oldColor;
 				actual_player.power = 0;
-				actual_player.time_reappear = 5;
 			}
 		}
 	}
-
-	//TODO
-	// bomb(){
-	// 	var new_bomb = new Bomb(this.position.x, this.position.y);
-	// 	bombs_list.push(new_bomb);
-	// }
 
 }
 
@@ -516,14 +350,6 @@ class Player{
 /////////////////////////////////////////////////////Starting the Script//////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 function main(){
-	//Count time of game
-	game_time = new Game_time(0, 0);
-	game_end = new Game_time(10, 0);
-
-	//Time function
-	setInterval(function () {
-		refresh_time();
-	}, 1000);
 
 	//Getting window information(height and width)
 	height = window.innerHeight - 25;
@@ -581,85 +407,10 @@ function main(){
 
 	}
 
-	//TODO: test
-	//Adding 1 power box at begin
-	var power_test = new Power_Box();
-	power_test.power = 1;
-	power_test.color = "#000000";
-	power_boxs_list.push(power_test);
-
-
-	//TODO: test
-	var new_player = new Player(155, "player15", "#FF00FF");
+	var new_player = new Player(15, "player15", "#FF00FF");
 	players_list.push(new_player);
 
 	play();
-}
-
-function refresh_time(){
-	if(game_time.second < 60){
-		game_time.second += 1;
-	} else{
-		game_time.second = 0;
-		game_time.minute += 1;
-	}
-
-	//Refreshing game time
-	if(game_end.minute != 0 || game_end.second != 0){
-		if(game_end.second == 0){
-			game_end.minute -= 1;
-			game_end.second = 60;
-		} else{
-			game_end.second -= 1;
-		}
-	}
-
-
-	//Refreshing time for all players (reappear, power and others)
-	for (var id = 0; id < players_list.length; id++){
-		var actual_player = players_list[id];
-
-		//Counting time to aparition
-		if(actual_player.life <= 0 && actual_player.time_reappear > 0){
-			actual_player.time_reappear -= 1;
-			actual_player.reappear();
-		}
-
-		if(actual_player.life > 0 && actual_player.power != 0){
-			if(actual_player.time_power != 0){
-				actual_player.time_power -= 10;
-			} else{
-				actual_player.time_power = 10;
-				//Explosion when power = 1
-				if(actual_player.power == 1){
-						actual_player.sound_explosion.play();
-					console.log(actual_player.sound_explosion.attributes);
-
-					if(actual_player.sound_explosion.currentTime == 0){
-						actual_player.life = 0;
-						actual_player.power = 0;
-					}
-				} else{
-					actual_player.color = actual_player.oldColor;
-				}
-					actual_player.power = 0;
-
-				if(actual_player.power == 4){
-					actual_player.shield = 0;
-				}
-			}
-		}
-
-	}
-
-	// for (var id = 0; id < bombs_list.length; id++){
-	// 	var actual_bomb = bombs_list[id];
-	// 	actual_bomb.time -= 1;
-	// 	if(actual_bomb.time == 0){
-	// 		actual_bomb.splice(i, i+1);
-	// 	}
-	// }
-
 }
 
 function addPowerBox(){
@@ -670,41 +421,25 @@ function addPowerBox(){
 }
 
 //Move the player
-function move(){
-	for (var id = 0; id < players_list.length; id++){
-		var actual_player = players_list[id];
+function move(object){
+	if(controller_id == object.id){
+		//Go left
+		if (actionLeft){
+			object.position.left();
+			object.direction = "left";
+			//Go rigth
+		} else if(actionRight){
+			object.position.right();
+			object.direction = "right";
+			//Hold something
+		} else if(actionHold){
 
-		if(actual_player.actionRight){
-			actual_player.position.right();
-			actual_player.direction = "right";
-
-		} else if (actual_player.actionLeft){
-				actual_player.position.left();
-				actual_player.direction = "left";
-
-		}	else if(actual_player.actionJump){
-			//Action jump is not processed here
-
-		} else if(actual_player.actionBomb){
-				//actual_player.bomb();
-				actual_player.actionBomb = false;
-
-		} else if(actual_player.ActionHit){
-				actual_player.hit();
-				actual_player.ActionHit = false;
-
-		} else if(actual_player.actionHold){
-				//TODO: hold
-				actual_player.actionHold = false
-
-		} else if(actual_player.up){
-				//TODO: find an action with up button
-				actual_player.up = false;
-
-		}	else if(actual_player.down){
-				//TODO: find an action with down button
-				actual_player.down = false;
-
+			//throw a bomb
+		} else if(actionBomb){
+			//player.hold();
+			//Attack
+		} else if(hit){
+			object.hit();
 		}
 	}
 }
@@ -712,56 +447,34 @@ function move(){
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////Playing game///////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-function refresh(stop){
-	//Showing game time
-	if(actual_status == "playing"){
-		context.fillStyle = "#FFFFFF";
-		context.font = "20px Arial";
-
-		context.fillText("Game end " + game_end.minute + " : " + game_end.second, width/2 - 100, 20);
-	}
-
-	if(game_end.minute == 0 && game_end.second == 0){
-		console.log("the winner is : " + winner_name + "with " + winner_score + " points");
-		window.cancelAnimationFrame(stop);
-	}
-
+function refresh(){
 	//Refresh all players
 	for (var id = 0; id < players_list.length; id++){
-		var actual_player = players_list[id];
-		actual_player.refresh_player();
-
-		if(actual_player.score > winner_score){
-			winner_score = actual_player.score;
-			winner_name = actual_player.name;
-		}
+		players_list[id].refresh_player();
 	}
 
 	//Refresh all power boxes
 	for(var i = 0; i < power_boxs_list.length; i++){
 		power_boxs_list[i].refresh_power_box();
 	}
+
+	//Permit to request for commands
+	sendAjax_commands();
 }
 
 //Function play is the function wich permit to the game to have an infinite loop
 function play(){
-	refresh(stop);
+	refresh();
 	draw();
-	//Permit to request for commands
-	sendAjax_commands();
-	//Processing commands
-	commands();
-	//Move player
-	move();
 
-	var stop = window.requestAnimationFrame(play);
+	window.requestAnimationFrame(play);
 }
 
 function draw(){
 	background = new Image();
-	background.src = "./images/back.png";
+	background.src = "./images/background.jpg";
 
-	//floor.draw_obstacle();
+	floor.draw_obstacle();
 	//TODO: delete
 	//obstacle_test.draw_obstacle();
 
@@ -784,15 +497,7 @@ function draw(){
 			power_boxs_list[i].draw_power_box();
 		}
 
-		//Drawing all bombs
-		// for(var i = 0; i < bombs_list.length; i++){
-		// 	var actual_bomb = bombs_list[i];
-		// 	if(actual_bomb.time > 0){
-		// 		actual_bomb.draw_bomb();
-		// 	} else if (actual_bomb.time < 0){
-		// 		actual_bomb.draw_explosion();
-		// 	}
-		// }
+
 	}
 
 	if(actual_status == "play"){
@@ -811,6 +516,23 @@ function draw(){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////Controller Interaction/////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Verify wich key was released and assing false to tell that this key stop being pressed
+function keyUp(action){
+	if(action == "right"){
+		actionRight = false;
+	} else if (action == "left"){
+		actionLeft = false;
+	}	else if(action == "bouton_B"){
+		actionBomb = false;
+	} else if(action == "bouton_D"){
+		hit = false;
+	} else if(action == "bouton_A"){
+		actionHold = false;
+	} else if(action == "select"){
+		actionEsc = false;
+	}
+}
+
 //SENDING AJAX to request for commands
 function sendAjax_commands() {
 		//tableau
@@ -832,37 +554,44 @@ function sendAjax_commands() {
 function receiveAjax_commands(serverData) {
 	if (defined(serverData)) {
 		for (val of serverData) {
-			for(val2 of val.order){
-				//Putting all commands in a list to process after
-				if(defined(val2.player_id) && defined(val2.order)){
-					var value = val2.player_id + "," + val2.order;
-
-					commands_list.push(value);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-				//Actions before game start : "new player" and "start game"
-				if(val2.order == "up" && actual_status == "play"){
-					actionSelect = true;
-				}
-
-				if(val2.order == "down"){
-					startAction = true;
-					actual_status = "playing";
-				}
+			if(val.order.player_id){
+				controller_id = val.order.player_id;
+			} else {
+				controller_id = 0;
+			}
+			if(val.order.order == "right"){
+				actionRight = true;
+			} else if (val.order.order == "left"){
+				actionLeft = true;
+			}	else if(val.order.order == "bouton_C"){
+				actionJump = true;
+			} else if(val.order.order == "bouton_B"){
+				actionBomb = true;
+			} else if(val.order.order == "bouton_D"){
+				hit = true;
+			} else if(val.order.order == "bouton_A"){
+				actionHold = true;
+			} else if(val.order.order == "up"){
+				//TODO: delete actionSelect because it is useless
+				actionSelect = true;
 
 				//Adding player before start game
 				if(actionSelect && actual_status == "play"){
 					var ifExist = false;
 					//Permit to verify if a player is yet on the party, if not he is added to the party
 					for (var id = 0; id < players_list.length; id++){
-						if(val2.player_id == players_list[id].id){
+						if(val.order.player_id == players_list[id].id){
 							ifExist = true;
 						}
-					}
+				}
 
 					if(!ifExist){
-						var new_player = new Player(val2.player_id, val2.name, val2.color);
+						console.log(val.order.name);
+						console.log(val.order.player_id);
+						var new_player = new Player(val.order.player_id, val.order.name, val.order.color);
 						players_list.push(new_player);
+
+						//TODO: delete actual_id if don't need it anymore
 
 						var menu_modal = document.getElementById("menu");
 
@@ -870,46 +599,23 @@ function receiveAjax_commands(serverData) {
 						var newContent = document.createTextNode(new_player.name);
 						player_name.appendChild(newContent);
 						menu_modal.appendChild(player_name);
-						}
 					}
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 				}
+
+			} else if(val.order.order == "down"){
+				//TODO: delete startAction because it is useless
+				startAction = true;
+				actual_status = "playing";
 			}
+
+			//Permit all players to move
+			for (var id = 0; id < players_list.length; id++){
+				move(players_list[id]);
+			}
+
+			keyUp(val.order.order);
 		}
 	}
-}
-
-//Processing commands
-function commands(){
-	for(var i = 0; i < commands_list.length; i++){
-		var value = commands_list[i].split(',');
-		var command = value[1];
-
-		var player_id = value[0];
-		for (var id = 0; id < players_list.length; id++){
-			if (player_id == players_list[id].id){
-				if(command == "right"){
-					players_list[id].actionRight = true;
-				} else if (command == "left"){
-					players_list[id].actionLeft = true;
-				}	else if(command == "bouton_C"){
-					players_list[id].actionJump = true;
-				} else if(command == "bouton_B"){
-					players_list[id].actionBomb = true;
-				} else if(command == "bouton_D"){
-					players_list[id].ActionHit = true;
-				} else if(command == "bouton_A"){
-					players_list[id].actionHold = true;
-				} else if(command == "up"){
-					players_list[id].up = true;
-				}	else if(command == "down"){
-					players_list[id].down = false;
-				}
-			}
-		}
-	}
-
-	commands_list = [];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -949,7 +655,7 @@ main();
 					</tr>
 				</table>
 				<!-- <img class='background_bomb' src='./images/background_bomb.png'> -->
-		</div>
+			</div>
 
 	</body>
 </html>
