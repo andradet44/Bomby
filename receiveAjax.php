@@ -16,7 +16,7 @@ include_once("dbConfig.php");
 $mysqli = new mysqli(DB_HOST, DB_LOGIN, DB_PWD, DB_NAME);
 
 // Requète
-$order_request = "SELECT * FROM `orders` inner join `players` on `orders`.`player_id` = `players`.`player_id` group by `orders`.`player_id`, `order`";
+$order_request = "SELECT * FROM `orders` inner join `players` on `orders`.`player_id` = `players`.`player_id` group by `orders`.`player_id`, `orders`.`orders`;";
 $result = $mysqli->query($order_request);
 
 $orders = [];

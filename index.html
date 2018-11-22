@@ -34,12 +34,10 @@
 $(document).ready(function(){
 //Declarations
 canvas = "", context = "", width = 0, height = 0, frames = 0, obstacle_list = [], commands_list = [], bombs_list = [],
-players_list = [], power_boxs_list = [] , floor_position = 0, actual_status = "play", game_end = 0;
-game_velocity = 6, jump_force = 20, floor = "" , sprite_position = 0, winner_name = "anyone", winner_score = 0,
-maxJump = 1, background = "";
+players_list = [], power_boxs_list = [] , floor_position = 0, actual_status = "play", game_end = 0, nb_obstacles = 15, level_start = 0, level_started = false;
+game_velocity = 6, jump_force = 20, floor = "" , sprite_position = 0, winner_name = "anyone", winner_score = 0, actual_level = 0,
+maxJump = 1, background = ""; y_reappear_max = 50;
 actionSelect = startAction = false;
-//TODO: delete
-//obstacle_test = "";
 
 class Game_time{
 	constructor(minute, second){
@@ -50,10 +48,6 @@ class Game_time{
 
 
 class Power_Box{
-	//TODO: gerer quand quelqu'un gagne
-	//Gerer les points
-
-	//TODO: add bombs
 	constructor(){
 		this.name = "";
 		this.velocity = 0;
@@ -184,7 +178,7 @@ class Position{
 			for (var id = 0; id < obstacle_list.length; id++){
 				var actual_obstacle = obstacle_list[id];
 				if((this.x + 50) >= actual_obstacle.position.x && (this.x + 50) <= (actual_obstacle.position.x + 10)){
-					if((this.y + 50 ) > actual_obstacle.position.y && this.y < (actual_obstacle.position.y + actual_obstacle.height)){
+					if((this.y + 100 ) > actual_obstacle.position.y && this.y < (actual_obstacle.position.y + actual_obstacle.height)){
 						this.x = actual_obstacle.position.x - 50;
 					}
 				}
@@ -205,7 +199,7 @@ class Position{
 			for (var id = 0; id < obstacle_list.length; id++){
 				var actual_obstacle = obstacle_list[id];
 				if(this.x <= (actual_obstacle.position.x + actual_obstacle.width) && this.x >= (actual_obstacle.position.x + actual_obstacle.width - 10)){
-					if((this.y + 50 ) > actual_obstacle.position.y && this.y < (actual_obstacle.position.y + actual_obstacle.height)){
+					if((this.y + 100 ) > actual_obstacle.position.y && this.y < (actual_obstacle.position.y + actual_obstacle.height)){
 						this.x = actual_obstacle.position.x + actual_obstacle.width;
 					}
 				}
@@ -216,28 +210,6 @@ class Position{
 		}
 		}
 	}
-
-//Class bomb
-// class Bomb{
-// 	constructor(x, y){
-// 		this.position = new Position(x, y);
-// 		this.time = 5;
-// 	}
-//
-// 	draw_bomb(){
-// 		var bomb = new Image();
-// 		bomb.src = "./images/bomb.png";
-//
-// 		context.drawImage(bomb, this.position.x + 50, this.position.y + 50, 50, 50);
-// 	}
-//
-// 	draw_explosion(){
-// 		var explosion = new Image();
-// 		explosion.src = "./images/explode.png";
-//
-// 		context.drawImage(explosion, this.position.x + 50, this.position.y + 50, 50, 50);
-// 	}
-// }
 
 //Class Player
 class Player{
@@ -260,7 +232,7 @@ class Player{
 		} else if(this.nb_alea > 25){
 			this.position = new Position(width - 100, 0);
 		}
-		this.number_of_jump = 0;
+		this.number_of_jumps = 0;
 		this.power = 0;
 		this.shield = 0;
 		this.damage = 0.5;
@@ -270,6 +242,7 @@ class Player{
 		this.score = 0;
 		this.sound_hit = document.getElementById('sound_hit');
 		this.sound_explosion = document.getElementById('sound_explosion');
+		this.y_reappear = 50;
 
 
 		//name
@@ -283,14 +256,12 @@ class Player{
 		this.actionLeft = false;
 		this.stepLeft = -1;
 		this.actionJump = false;
-		this.stepJump = 1;
 		this.actionBomb = false;
 		this.ActionHit = false;
 		this.actionHold = false;
 		this.up = false;
 		this.down = false;
 		this.direction = "right";
-		this.stand = true;
 		this.hitting = false;
 	}
 
@@ -346,7 +317,8 @@ class Player{
 		if(this.life > 0){
 			context.fillText(this.name + " " + this.life , this.name_position.x, this.name_position.y);
 		} else{
-			context.fillText(this.name + " reappearing in : " + this.time_reappear + " sec", 50, 50);
+			//TODO avoid message to be at the same position
+			context.fillText(this.name + " reappearing in : " + this.time_reappear + " sec", 50, this.y_reappear);
 		}
 
 		this.hitting = false;
@@ -360,13 +332,15 @@ class Player{
 
 
 			//Make Player jump
-			if(this.actionJump){
+			if(this.actionJump && this.number_of_jumps < maxJump){
 				this.velocity = -jump_force;
+				this.number_of_jumps += 1;
 
 				this.actionJump = false;
 			} else {
 				//Applying gravity
 				this.velocity += this.gravity;
+
 			}
 
 			//Getting a new power
@@ -406,12 +380,12 @@ class Player{
 			for (var id = 0; id < obstacle_list.length; id++){
 				var actual_obstacle = obstacle_list[id];
 
-				// //Permit the Player to get on a platform (collision by top)
-				if(this.position.x + 50 > (actual_obstacle.position.x + 5) && (this.position.x) <= (actual_obstacle.position.x + actual_obstacle.width - 5)){
+				//Permit the Player to get on a platform (collision by top)
+				if(this.position.x + this.width >= (actual_obstacle.position.x + 5) && (this.position.x) <= (actual_obstacle.position.x + actual_obstacle.width - 5)){
 					if((this.position.y + this.height) > actual_obstacle.position.y && (this.position.y) < (actual_obstacle.position.y + 5)){
 						this.velocity = 0;
 						this.position.y = actual_obstacle.position.y - this.height;
-						this.number_of_jump = 0;
+						this.number_of_jumps = 0;
 					}
 				}
 
@@ -436,7 +410,7 @@ class Player{
 				if (this.position.y > (floor.position.y - this.height)){
 					this.position.y = floor.position.y - this.height;
 					this.velocity = 0;
-					this.number_of_jump = 0;
+					this.number_of_jumps = 0;
 				}
 			}
 
@@ -502,13 +476,6 @@ class Player{
 			}
 		}
 	}
-
-	//TODO
-	// bomb(){
-	// 	var new_bomb = new Bomb(this.position.x, this.position.y);
-	// 	bombs_list.push(new_bomb);
-	// }
-
 }
 
 
@@ -518,7 +485,8 @@ class Player{
 function main(){
 	//Count time of game
 	game_time = new Game_time(0, 0);
-	game_end = new Game_time(10, 0);
+	game_end = new Game_time(1, 0);
+	level_start = new Game_time(0, 1);
 
 	//Time function
 	setInterval(function () {
@@ -529,17 +497,11 @@ function main(){
 	height = window.innerHeight - 25;
 	width = window.innerWidth - 20;
 
+	//Defining floor position
 	floor_position = new Position(0, height - 100);
 	floor = new Obstacle(99, floor_position, width, 100);
 
-//TODO: delete obstacle test
-	// var obstacle_test_position = new Position(200, height - 300);
-	// obstacle_test = new Obstacle(12345, obstacle_test_position, width - 500, 50);
-	// obstacle_test.color = "#0000FF";
-
-	//Adding 1 power box at begin
-	var newPowerBox = new Power_Box();
-	power_boxs_list.push(newPowerBox);
+	game_velocity = width * 0.006;
 
 	//adding 1 power box each 30 sec
 	setInterval(addPowerBox, 30000);
@@ -557,9 +519,20 @@ function main(){
 	//Adding canvas to html
 	document.body.appendChild(canvas);
 
-	//To avoid a flor to be confused with another one
+
+	//TODO: test
+	var new_player = new Player(155, "player15", "#FF00FF");
+	players_list.push(new_player);
+
+	play();
+
+}
+
+
+function level_one(){
+	//To avoid a platform to be confused with another one
 	var last_position = 0;
-	for (var id = 0; id < 10; id++){
+	for (var id = 0; id < nb_obstacles; id++){
 		var condition = true;
 		do{
 			floor_position = new Position(Math.floor(width * Math.random()), Math.floor((height - 100) * Math.random()));
@@ -568,32 +541,35 @@ function main(){
 				last_position = floor_position;
 			}
 
-			if(floor_position.y <  last_position.y + 60 || floor_position.y > last_position.y + 60){
+
+			if(floor_position.y + 50 < last_position.y + 10 || floor_position.y > last_position.y + 60){
 				condition = false;
 			}
 
+			if(floor_position.y > height - 100){
+				condition = true;
+			}
+
+			if(floor_position.y < 150){
+				condition = true;
+			}
+
+
+
+
 		} while (condition);
+
 
 		last_position = floor_position;
 
-		newFloor = new Obstacle(id, floor_position, 200, 50);
+		var width_alea =  Math.floor(200 * Math.random());
+		if(width_alea < 50){
+			width_alea += 50;
+		}
+		newFloor = new Obstacle(id, floor_position, width_alea, 50);
 		obstacle_list.push(newFloor);
 
 	}
-
-	//TODO: test
-	//Adding 1 power box at begin
-	var power_test = new Power_Box();
-	power_test.power = 1;
-	power_test.color = "#000000";
-	power_boxs_list.push(power_test);
-
-
-	//TODO: test
-	var new_player = new Player(155, "player15", "#FF00FF");
-	players_list.push(new_player);
-
-	play();
 }
 
 function refresh_time(){
@@ -611,6 +587,24 @@ function refresh_time(){
 			game_end.second = 60;
 		} else{
 			game_end.second -= 1;
+		}
+	}
+
+	//refreshing game start time
+	if(level_start.second >= 0){
+		if(actual_status == "playing"){
+			level_start.second -= 1;
+		}
+	} else{
+		level_start.second == 0;
+		if(actual_level == 0){
+			level_started = true;
+			if(actual_level == 0){
+				level_one();
+			} else if(actual_level == 1){
+				level_two();
+			}
+			actual_level = 1;
 		}
 	}
 
@@ -633,7 +627,6 @@ function refresh_time(){
 				//Explosion when power = 1
 				if(actual_player.power == 1){
 						actual_player.sound_explosion.play();
-					console.log(actual_player.sound_explosion.attributes);
 
 					if(actual_player.sound_explosion.currentTime == 0){
 						actual_player.life = 0;
@@ -651,14 +644,6 @@ function refresh_time(){
 		}
 
 	}
-
-	// for (var id = 0; id < bombs_list.length; id++){
-	// 	var actual_bomb = bombs_list[id];
-	// 	actual_bomb.time -= 1;
-	// 	if(actual_bomb.time == 0){
-	// 		actual_bomb.splice(i, i+1);
-	// 	}
-	// }
 
 }
 
@@ -695,6 +680,7 @@ function move(){
 
 		} else if(actual_player.actionHold){
 				//TODO: hold
+				actual_player.life = 0;
 				actual_player.actionHold = false
 
 		} else if(actual_player.up){
@@ -713,17 +699,21 @@ function move(){
 //////////////////////////////////////////////////Playing game///////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 function refresh(stop){
-	//Showing game time
-	if(actual_status == "playing"){
-		context.fillStyle = "#FFFFFF";
-		context.font = "20px Arial";
-
-		context.fillText("Game end " + game_end.minute + " : " + game_end.second, width/2 - 100, 20);
-	}
 
 	if(game_end.minute == 0 && game_end.second == 0){
-		console.log("the winner is : " + winner_name + "with " + winner_score + " points");
-		window.cancelAnimationFrame(stop);
+		var modal_game_end = document.getElementById("game_end");
+
+		if(modal_game_end.style.display != "block"){
+			var winner_modal = document.getElementById("winner");
+
+			var winner_info = document.createElement("td");
+			var newContent = document.createTextNode("The winner is : " + winner_name + " with " + winner_score + " points.");
+			winner_info.appendChild(newContent);
+			winner_modal.appendChild(winner_info);
+		}
+
+		modal_game_end.style.display = "block";
+
 	}
 
 	//Refresh all players
@@ -746,7 +736,9 @@ function refresh(stop){
 //Function play is the function wich permit to the game to have an infinite loop
 function play(){
 	refresh(stop);
-	draw();
+	if(game_end.minute == 0 && game_end.second > 0 || game_end.minute > 0){
+		draw();
+	}
 	//Permit to request for commands
 	sendAjax_commands();
 	//Processing commands
@@ -761,15 +753,19 @@ function draw(){
 	background = new Image();
 	background.src = "./images/back.png";
 
-	//floor.draw_obstacle();
-	//TODO: delete
-	//obstacle_test.draw_obstacle();
 
 	//When image loaded
 	background.onload = function()
 	{
-		context.drawImage(background, 0, 0, width, height);
+		context.drawImage(background, 0, 0, width, height - 100);
 	}
+
+	//Drawing floor
+	var floor_draw = new Image();
+	floor_draw.src = "./images/platform.png";
+
+	context.drawImage(floor_draw,0, height - 100, width, 100);
+
 
 	if(actual_status == "playing"){
 			jQuery("#menu").hide();
@@ -783,16 +779,6 @@ function draw(){
 		for(var i = 0; i < power_boxs_list.length; i++){
 			power_boxs_list[i].draw_power_box();
 		}
-
-		//Drawing all bombs
-		// for(var i = 0; i < bombs_list.length; i++){
-		// 	var actual_bomb = bombs_list[i];
-		// 	if(actual_bomb.time > 0){
-		// 		actual_bomb.draw_bomb();
-		// 	} else if (actual_bomb.time < 0){
-		// 		actual_bomb.draw_explosion();
-		// 	}
-		// }
 	}
 
 	if(actual_status == "play"){
@@ -804,6 +790,29 @@ function draw(){
 		players_list[id].draw_player();
 	}
 
+	//Showing time to start game
+	if(level_start.second > 0 && actual_status == "playing"){
+		context.fillStyle = "#FFFFFF";
+		context.font = "50px Arial";
+
+		context.fillText("Level 1 : No one is your friend now.", width/2 - 300, 100);
+
+		context.fillText("Game : death match.", width/2 - 300, 150);
+
+		context.fillText("Kill the most players to win the game", width/2 - 300, 200);
+
+
+		context.fillText("Starting game in " + level_start.second + " seconds ", width/2 - 300, height/2);
+	}
+
+
+	//Showing game time
+	if(actual_status == "playing" && level_started){
+		context.fillStyle = "#FFFFFF";
+		context.font = "20px Arial";
+
+		context.fillText("Game end " + game_end.minute + " : " + game_end.second, width/2 - 100, 20);
+	}
 
 }
 
@@ -834,18 +843,18 @@ function receiveAjax_commands(serverData) {
 		for (val of serverData) {
 			for(val2 of val.order){
 				//Putting all commands in a list to process after
-				if(defined(val2.player_id) && defined(val2.order)){
-					var value = val2.player_id + "," + val2.order;
+				if(defined(val2.player_id) && defined(val2.orders)){
+					var value = val2.player_id + "," + val2.orders;
 
 					commands_list.push(value);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 				//Actions before game start : "new player" and "start game"
-				if(val2.order == "up" && actual_status == "play"){
+				if(val2.orders == "up" && actual_status == "play"){
 					actionSelect = true;
 				}
-
-				if(val2.order == "down"){
+				//TODO Change button start
+				if(val2.orders == "down"){
 					startAction = true;
 					actual_status = "playing";
 				}
@@ -888,17 +897,17 @@ function commands(){
 		var player_id = value[0];
 		for (var id = 0; id < players_list.length; id++){
 			if (player_id == players_list[id].id){
-				if(command == "right"){
+				if(command == "right" && level_started){
 					players_list[id].actionRight = true;
-				} else if (command == "left"){
+				} else if (command == "left" && level_started){
 					players_list[id].actionLeft = true;
-				}	else if(command == "bouton_C"){
+				}	else if(command == "bouton_C" && level_started){
 					players_list[id].actionJump = true;
-				} else if(command == "bouton_B"){
+				} else if(command == "bouton_B" && level_started){
 					players_list[id].actionBomb = true;
-				} else if(command == "bouton_D"){
+				} else if(command == "bouton_D" && level_started){
 					players_list[id].ActionHit = true;
-				} else if(command == "bouton_A"){
+				} else if(command == "bouton_A" && level_started){
 					players_list[id].actionHold = true;
 				} else if(command == "up"){
 					players_list[id].up = true;
@@ -916,17 +925,6 @@ function commands(){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//Draw a sun
-function drawSun(){
-	var rg = context.createRadialGradient(1100, 64, 48, 1100, 64, 64);
-	//sun color
-	rg.addColorStop(0, 'white');
-	rg.addColorStop(1, 'rgba(255, 255, 0, 0)');
-	context.fillStyle = rg;
-	context.fillRect(1000, 0, 200, 200);
-}
-
-
 //test if a variable is defined
 function defined(myVar) {
 	if (typeof myVar != 'undefined') return true;
@@ -939,6 +937,7 @@ main();
 </script>
 		<div class="modal"  id="menu">
 				<table class="menu" id="menu">
+					<tr>
 						<td> Instructions : connect your phone to the console </td>
 					</tr>
 					<tr>
@@ -948,7 +947,19 @@ main();
 						<td> Press Start to begin the game </td>
 					</tr>
 				</table>
-				<!-- <img class='background_bomb' src='./images/background_bomb.png'> -->
+		</div>
+
+		<div class="modal_game_end"  id="game_end">
+				<table class="menu" id="game_end">
+					<tr id="winner">
+
+					</tr>
+					<tr id="points">
+					</tr>
+					<tr>
+						<td> Press Start to continue to next level </td>
+					</tr>
+				</table>
 		</div>
 
 	</body>
