@@ -17,7 +17,7 @@
 		<link rel='icon' type='image/png' href='./images/background_bomb.png' />
 
 		<!-- Titre de l'onglet -->
-		<title></title>
+		<title> Bomby </title>
 	</head>
 
 
@@ -30,15 +30,141 @@
 		<audio  id="sound_explosion" preload="auto">
 			<source src="./sounds/explosion.wav">
 		</audio>
+
+		<audio  id="sound_countdown" preload="auto">
+			<source src="./sounds/countdown.wav">
+		</audio>
+
+		<audio  id="sound_back" preload="auto">
+			<source src="./sounds/sound_back.mp3">
+		</audio>
 <script>
 $(document).ready(function(){
 //Declarations
-canvas = "", context = "", width = 0, height = 0, frames = 0, obstacle_list = [], commands_list = [], bombs_list = [],
+canvas = "", context = "", width = 0, height = 0, frames = 0, obstacle_list = [], commands_list = [], bombs_list = [], explosions_list = [], players_dead = 0,
 players_list = [], power_boxs_list = [] , floor_position = 0, actual_status = "play", game_end = 0, nb_obstacles = 15, level_start = 0, level_started = false;
-game_velocity = 6, jump_force = 20, floor = "" , sprite_position = 0, winner_name = "anyone", winner_score = 0, actual_level = 0,
-maxJump = 1, background = ""; y_reappear_max = 50;
+game_velocity = 6, jump_force = 20, floor = "" , sprite_position = 0, winner_name = "anyone", winner_score = 0, actual_level = 0, gravity = 1,
+maxJump = 1, background = "";
 actionSelect = startAction = false;
 
+//TODO : avoid double jump
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////All class////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class Bomb{
+	constructor(id, x, y){
+		this.id = id;
+		this.position = new Position(x, y);
+		this.damage = 25;
+		this.time_drawed = 0;
+		this.drawed = false;
+		this.width = 50;
+		this.height = 50;
+		this.velocity = 0;
+		this.gravity = gravity;
+		this.sound_countdown = document.getElementById('sound_countdown');
+		this.sound_played = false;
+	}
+
+	draw_bomb(){
+		var explosion = new Image();
+		explosion.src = "./images/bomb.png";
+
+		context.drawImage(explosion, this.position.x, this.position.y, this.width, this.height);
+		if(this.sound_played == false){
+			sound_countdown.play();
+			this.sound_played = true;
+		}
+	}
+
+	refresh_bomb(){
+		//Applying gravity
+		this.velocity += this.gravity;
+
+		//Permit the power box to get on a platform
+		for (var i = 0; i < obstacle_list.length; i++){
+			var actual_obstacle = obstacle_list[i];
+			if(this.position.x + 50 >= actual_obstacle.position.x && (this.position.x) <= (actual_obstacle.position.x + actual_obstacle.width)){
+				if((this.position.y + 50) > actual_obstacle.position.y && (this.position.y + 50) < (actual_obstacle.position.y + actual_obstacle.height)){
+					this.velocity = 0;
+					this.position.y = actual_obstacle.position.y - 50;
+				}
+			}
+		}
+
+		//Avoid power bomb to past the floor
+		if (this.position.y > (floor.position.y - 50)){
+			this.position.y = floor.position.y - 50;
+			this.velocity = 0;
+		}
+
+		this.position.y += this.velocity;
+	}
+}
+
+//osion
+class Explosion{
+	constructor(id, x, y, damage){
+		this.id = id;
+		this.position = new Position(x, y);
+		this.drawed = false;
+		this.time_drawed = 0;
+		this.width = 200;
+		this.height = 200;
+		this.explosion_radius = 50;
+		this.damage = damage;
+		this.sound_explosion = document.getElementById('sound_explosion');
+	}
+
+	draw_explosion(){
+		var explosion = new Image();
+		explosion.src = "./images/explosion.png";
+
+		context.drawImage(explosion, this.position.x, this.position.y, this.width, this.height);
+
+		if(this.time_drawed >= 2){
+			this.drawed = true;
+		}
+	}
+
+	refresh_explosion(){
+		for (var id = 0; id < players_list.length; id++){
+			var actual_player = players_list[id];
+			var x = actual_player.position.x;
+			var y = actual_player.position.y;
+
+			//Processing damage
+			if((x + actual_player.width) >= (this.position.x - this.explosion_radius) && x <= (this.position.x + this.width + this.explosion_radius)){
+				if((y + actual_player.height) >= (this.position.y - this.explosion_radius) && y <= (this.position.y + this.height + this.explosion_radius)){
+					//If player have a shield it with protec him from the bomb but shield will break
+					if(actual_player.power == 4 && actual_player.life >= 100){
+						actual_player.life == 100;
+					} else{
+						actual_player.life -= this.damage;
+						actual_player.position.y -= 20;
+					}
+
+					//Giving points to the player
+					if(actual_player.life <= 0){
+						for (var id1 = 0; id1 < players_list.length; id1++){
+							var actual_player1 = players_list[id1];
+
+							if(actual_player1.id == this.id && actual_player1.id != actual_player.id){
+								actual_player1.score += 1;
+							}
+						}
+					}
+				}
+			}
+		}
+
+
+	}
+}
+
+//Class Game_time
 class Game_time{
 	constructor(minute, second){
 		this.second = second;
@@ -46,7 +172,7 @@ class Game_time{
 	}
 }
 
-
+//Class Power_Box
 class Power_Box{
 	constructor(){
 		this.name = "";
@@ -218,8 +344,8 @@ class Player{
 		this.velocity = 0;
 		this.width = 50;
 		this.height = 100;
-		this.gravity = 1;
-		this.nb_alea = Math.floor(50 * Math.random());
+		this.gravity = 0;
+		this.nb_alea = Math.floor(width * Math.random());
 		if(color == "default"){
 			this.color = "#FF0040";
 			this.oldColor = "#FF0040";
@@ -227,11 +353,9 @@ class Player{
 			this.color = color;
 			this.oldColor = color;
 		}
-		if(this.nb_alea <= 25){
-			this.position = new Position(50, 0);
-		} else if(this.nb_alea > 25){
-			this.position = new Position(width - 100, 0);
-		}
+
+		this.position = new Position(this.nb_alea, 0);
+
 		this.number_of_jumps = 0;
 		this.power = 0;
 		this.shield = 0;
@@ -243,6 +367,10 @@ class Player{
 		this.sound_hit = document.getElementById('sound_hit');
 		this.sound_explosion = document.getElementById('sound_explosion');
 		this.y_reappear = 50;
+		this.death_position = 0;
+		this.number_of_bombs = 0;
+		this.max_bombs = 1;
+		this.bomb_time = 5;
 
 
 		//name
@@ -317,14 +445,17 @@ class Player{
 		if(this.life > 0){
 			context.fillText(this.name + " " + this.life , this.name_position.x, this.name_position.y);
 		} else{
-			//TODO avoid message to be at the same position
-			context.fillText(this.name + " reappearing in : " + this.time_reappear + " sec", 50, this.y_reappear);
+			context.fillText(this.name + " reappearing in : " + this.time_reappear + " sec", 50, this.y_reappear + this.death_position * 30);
 		}
 
 		this.hitting = false;
 	}
 
 	refresh_player(){
+		if(level_started){
+			this.gravity = gravity;
+		}
+
 		if(this.life > 0){
 			//Refresh name position
 			this.name_position.y = this.position.y - 5;
@@ -335,8 +466,8 @@ class Player{
 			if(this.actionJump && this.number_of_jumps < maxJump){
 				this.velocity = -jump_force;
 				this.number_of_jumps += 1;
-
 				this.actionJump = false;
+
 			} else {
 				//Applying gravity
 				this.velocity += this.gravity;
@@ -462,6 +593,15 @@ class Player{
 		}
 	}
 
+	bomb(){
+		if(this.number_of_bombs < this.max_bombs){
+			var newBomb = new Bomb(this.id, this.position.x, this.position.y + this.height/2);
+
+			bombs_list.push(newBomb);
+			this.number_of_bombs += 1;
+		}
+	}
+
 	reappear(){
 		for (var id = 0; id < players_list.length; id++){
 			var actual_player = players_list[id];
@@ -473,6 +613,8 @@ class Player{
 				actual_player.color = actual_player.oldColor;
 				actual_player.power = 0;
 				actual_player.time_reappear = 5;
+				actual_player.death_position = 0;
+				players_dead -= 1;
 			}
 		}
 	}
@@ -483,9 +625,10 @@ class Player{
 /////////////////////////////////////////////////////Starting the Script//////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 function main(){
+	var sound_back = document.getElementById('sound_back');
 	//Count time of game
 	game_time = new Game_time(0, 0);
-	game_end = new Game_time(1, 0);
+	game_end = new Game_time(0, 60);
 	level_start = new Game_time(0, 1);
 
 	//Time function
@@ -522,9 +665,17 @@ function main(){
 
 	//TODO: test
 	var new_player = new Player(155, "player15", "#FF00FF");
+	//new_player.power = 4;
 	players_list.push(new_player);
 
+	//TODO: test
+	var newPowerBox = new Power_Box();
+	newPowerBox.power = 1;
+	newPowerBox.color = "#190707";
+	power_boxs_list.push(newPowerBox);
+
 	play();
+	sound_back.play();
 
 }
 
@@ -573,78 +724,111 @@ function level_one(){
 }
 
 function refresh_time(){
-	if(game_time.second < 60){
-		game_time.second += 1;
-	} else{
-		game_time.second = 0;
-		game_time.minute += 1;
-	}
-
-	//Refreshing game time
-	if(game_end.minute != 0 || game_end.second != 0){
-		if(game_end.second == 0){
-			game_end.minute -= 1;
-			game_end.second = 60;
+	if(actual_status == "playing" && level_started){
+		if(game_time.second < 60){
+			game_time.second += 1;
 		} else{
-			game_end.second -= 1;
-		}
-	}
-
-	//refreshing game start time
-	if(level_start.second >= 0){
-		if(actual_status == "playing"){
-			level_start.second -= 1;
-		}
-	} else{
-		level_start.second == 0;
-		if(actual_level == 0){
-			level_started = true;
-			if(actual_level == 0){
-				level_one();
-			} else if(actual_level == 1){
-				level_two();
-			}
-			actual_level = 1;
-		}
-	}
-
-
-	//Refreshing time for all players (reappear, power and others)
-	for (var id = 0; id < players_list.length; id++){
-		var actual_player = players_list[id];
-
-		//Counting time to aparition
-		if(actual_player.life <= 0 && actual_player.time_reappear > 0){
-			actual_player.time_reappear -= 1;
-			actual_player.reappear();
+			game_time.second = 0;
+			game_time.minute += 1;
 		}
 
-		if(actual_player.life > 0 && actual_player.power != 0){
-			if(actual_player.time_power != 0){
-				actual_player.time_power -= 10;
+		//Refreshing game time
+		if(game_end.minute != 0 || game_end.second != 0){
+			if(game_end.second == 0){
+				game_end.minute -= 1;
+				game_end.second = 60;
 			} else{
-				actual_player.time_power = 10;
-				//Explosion when power = 1
-				if(actual_player.power == 1){
-						actual_player.sound_explosion.play();
+				game_end.second -= 1;
+			}
+		}
 
-					if(actual_player.sound_explosion.currentTime == 0){
-						actual_player.life = 0;
-						actual_player.power = 0;
-					}
+		//Refreshing time for all players (reappear, power and others)
+		for (var id = 0; id < players_list.length; id++){
+			var actual_player = players_list[id];
+
+			//Bomb time
+			if(actual_player.number_of_bombs >= actual_player.max_bombs && actual_player.bomb_time > 0){
+				actual_player.bomb_time -= 1;
+			} else{
+				actual_player.number_of_bombs = 0;
+				actual_player.bomb_time = 5;
+			}
+
+			//Counting time to aparition
+			if(actual_player.life <= 0 && actual_player.time_reappear > 0){
+				actual_player.time_reappear -= 1;
+				actual_player.reappear();
+			}
+
+			if(actual_player.life > 0 && actual_player.power != 0){
+				if(actual_player.time_power != 0){
+					actual_player.time_power -= 5; //TODO put good time 1
 				} else{
-					actual_player.color = actual_player.oldColor;
-				}
-					actual_player.power = 0;
+					actual_player.time_power = 10;
+					//Explosion when power = 1
+					if(actual_player.power == 1){
+							actual_player.sound_explosion.play();
+							var explosion = new Explosion(actual_player.id, actual_player.position.x - 100, actual_player.position.y, 25);
+							explosions_list.push(explosion);
 
-				if(actual_player.power == 4){
-					actual_player.shield = 0;
+						if(actual_player.sound_explosion.currentTime == 0){
+							actual_player.life = 0;
+							players_dead += 1;
+							actual_player.death_position = players_dead;
+							actual_player.power = 0;
+						}
+					} else{
+						actual_player.color = actual_player.oldColor;
+					}
+						actual_player.power = 0;
+
+					if(actual_player.power == 4){
+						actual_player.shield = 0;
+					}
 				}
 			}
 		}
 
-	}
+		//Refreshing explosion_time
+		for (var i = 0; i < explosions_list.length; i++){
+			var actual_explosion = explosions_list[i];
 
+			if(actual_explosion.time_drawed < 2){
+				actual_explosion.time_drawed += 1;
+			}
+		}
+
+
+		//Refreshing bomb time
+		for (var i = 0; i < bombs_list.length; i++){
+			var actual_bomb = bombs_list[i];
+
+			if(actual_bomb.time_drawed < 4){
+				actual_bomb.time_drawed += 1;
+			} else{
+				actual_bomb.drawed = true;
+			}
+		}
+
+
+	}
+		//refreshing game start time
+		if(level_start.second >= 0){
+			if(actual_status == "playing"){
+				level_start.second -= 1;
+			}
+		} else{
+			level_start.second == 0;
+			if(actual_level == 0){
+				level_started = true;
+				if(actual_level == 0){
+					level_one();
+				} else if(actual_level == 1){
+					level_two();
+				}
+				actual_level = 1;
+			}
+		}
 }
 
 function addPowerBox(){
@@ -671,7 +855,7 @@ function move(){
 			//Action jump is not processed here
 
 		} else if(actual_player.actionBomb){
-				//actual_player.bomb();
+				actual_player.bomb();
 				actual_player.actionBomb = false;
 
 		} else if(actual_player.ActionHit){
@@ -680,7 +864,6 @@ function move(){
 
 		} else if(actual_player.actionHold){
 				//TODO: hold
-				actual_player.life = 0;
 				actual_player.actionHold = false
 
 		} else if(actual_player.up){
@@ -712,8 +895,8 @@ function refresh(stop){
 			winner_modal.appendChild(winner_info);
 		}
 
-		modal_game_end.style.display = "block";
-
+		jQuery(".modal_game_end").show();
+		//modal_game_end.style.display = "block";
 	}
 
 	//Refresh all players
@@ -730,6 +913,36 @@ function refresh(stop){
 	//Refresh all power boxes
 	for(var i = 0; i < power_boxs_list.length; i++){
 		power_boxs_list[i].refresh_power_box();
+	}
+
+	//Refresh all explosions
+	for(var i = 0; i < explosions_list.length; i++){
+		var actual_explosion = explosions_list[i];
+
+		if(actual_explosion.time_drawed < 2){
+			actual_explosion.refresh_explosion();
+		}
+
+		if(actual_explosion.drawed){
+			actual_explosion.sound_explosion.play();
+			explosions_list.splice(i, i+1);
+		}
+	}
+
+	//Refresh all bombs
+	for(var i = 0; i < bombs_list.length; i++){
+		var actual_bomb = bombs_list[i];
+
+		actual_bomb.refresh_bomb();
+
+
+		if(actual_bomb.drawed){
+			bombs_list.splice(i, i+1);
+
+			var newExplosion = new Explosion(actual_bomb.id, actual_bomb.position.x - 100, actual_bomb.position.y - 100, actual_bomb.damage);
+
+			explosions_list.push(newExplosion);
+		}
 	}
 }
 
@@ -812,6 +1025,26 @@ function draw(){
 		context.font = "20px Arial";
 
 		context.fillText("Game end " + game_end.minute + " : " + game_end.second, width/2 - 100, 20);
+	}
+
+	// context.fillStyle = "#FF0040";
+	//
+	// context.beginPath();
+  // context.arc(50, 50, 50, 0, 2 * Math.PI);
+	// context.fill();
+ 	// context.stroke();
+
+	for(var i = 0; i < bombs_list.length; i++){
+		var actual_bomb = bombs_list[i];
+
+		actual_bomb.draw_bomb();
+	}
+
+	//Drawing all explosions
+	for(var i = 0; i < explosions_list.length; i++){
+		var actual_explosion = explosions_list[i];
+
+		actual_explosion.draw_explosion();
 	}
 
 }
