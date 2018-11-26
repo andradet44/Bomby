@@ -57,7 +57,7 @@ class Bomb{
 	constructor(id, x, y){
 		this.id = id;
 		this.position = new Position(x, y);
-		this.damage = 25;
+		this.damage = 10;
 		this.time_drawed = 0;
 		this.drawed = false;
 		this.width = 50;
@@ -313,7 +313,7 @@ class Position{
 			//Collisions by left
 			for (var id = 0; id < obstacle_list.length; id++){
 				var actual_obstacle = obstacle_list[id];
-				if((this.x + 50) >= actual_obstacle.position.x && (this.x + 50) <= (actual_obstacle.position.x + 10)){
+				if((this.x + 50) >= actual_obstacle.position.x && this.x + 25 <= actual_obstacle.position.x){
 					if((this.y + 100 ) > actual_obstacle.position.y && this.y < (actual_obstacle.position.y + actual_obstacle.height)){
 						this.x = actual_obstacle.position.x - 50;
 					}
@@ -334,8 +334,8 @@ class Position{
 			//Collisions by right
 			for (var id = 0; id < obstacle_list.length; id++){
 				var actual_obstacle = obstacle_list[id];
-				if(this.x <= (actual_obstacle.position.x + actual_obstacle.width) && this.x >= (actual_obstacle.position.x + actual_obstacle.width - 10)){
-					if((this.y + 100 ) > actual_obstacle.position.y && this.y < (actual_obstacle.position.y + actual_obstacle.height)){
+				if(this.x <= (actual_obstacle.position.x + actual_obstacle.width) && this.x + 25 >= (actual_obstacle.position.x + actual_obstacle.width)){
+					if((this.y + 100 ) >= actual_obstacle.position.y && this.y <= (actual_obstacle.position.y + actual_obstacle.height)){
 						this.x = actual_obstacle.position.x + actual_obstacle.width;
 					}
 				}
@@ -644,8 +644,8 @@ function main(){
 	var sound_back = document.getElementById('sound_back');
 	//Count time of game
 	game_time = new Game_time(0, 0);
-	game_end = new Game_time(0, 10);
-	level_start = new Game_time(0, 5);
+	game_end = new Game_time(0, 60);
+	level_start = new Game_time(0, 1);
 
 	//Time function
 	setInterval(function () {
@@ -660,7 +660,9 @@ function main(){
 	floor_position = new Position(0, height - 100);
 	floor = new Obstacle(99, floor_position, width, 100);
 
-	game_velocity = width * 0.006;
+	game_velocity = width * 0.007;
+	// jump_force = 0.025 * height;
+	gravity = 0.07 * game_velocity;
 
 	//adding 1 power box each 30 sec
 	setInterval(addPowerBox, 30000);
