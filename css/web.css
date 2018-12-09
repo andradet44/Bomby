@@ -47,4 +47,9 @@ h1{
   display: inline-block;
   max-width: 10%;
   margin-right: 10px;
+  margin-left: 30px;
+  border-style: double;
+  padding-left: 10px;
+  padding-right: 10px;
+  border-color: #FF4000;
 }
