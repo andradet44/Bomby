@@ -37,6 +37,23 @@
   background: linear-gradient(to right, #e1e0ff, #d7fadd);
 }
 
+.modal_pause{
+  display: none;
+  position:fixed;
+  top:10%;
+  left:10%;
+  right:10%;
+  bottom:10%;
+	min-width: 70%;
+	min-height: 70%;
+	margin: auto;
+  border-radius: 100px;
+	border-radius: 5px;
+  background-image: url('../images/background_bomb.png');
+  background-repeat: no-repeat;
+  background: linear-gradient(to right, #e1e0ff, #d7fadd);
+}
+
 canvas{
   margin: auto;
 }

@@ -41,7 +41,7 @@
 <script>
 $(document).ready(function(){
 //Declarations
-canvas = "", context = "", width = 0, height = 0, frames = 0, obstacle_list = [], commands_list = [], bombs_list = [], explosions_list = [], players_dead = 0, pause = false, pause_id = 0,
+canvas = "", context = "", width = 0, height = 0, frames = 0, obstacle_list = [], commands_list = [], bombs_list = [], explosions_list = [], players_dead = 0, pause = false, canPause = true,
 players_list = [], power_boxs_list = [] , floor_position = 0, actual_status = "play", game_end = 0, nb_obstacles = 15, level_start = 0, level_started = false;
 game_velocity = 6, jump_force = 20, floor = "" , sprite_position = 0, winner_name = "anyone", winner_score = 0, actual_level = 0, gravity = 1, level_win = false, end_game_menu = false,
 maxJump = 1, background = "";
@@ -204,10 +204,10 @@ class Power_Box{
 			//shield blue
 			this.color = "#2EFEF7";
 		} else if(this.power == 5){
-			//Sticky Bomb purple
+			//Fly
 			this.color = "#CC2EFA";
 		} else if(this.power == 6){
-			//Sticky Bomb purple
+			//triple bomb
 			this.color = "#40FF00";
 		}
 	}
@@ -242,11 +242,18 @@ class Power_Box{
 				context.drawImage(shield,this.position.x, this.position.y, 50, 50);
 			}
 
-			if(this.power == 6){
-				var doubleJump = new Image();
-				doubleJump.src = "./images/bee.png";
+			if(this.power == 5){
+				var fly = new Image();
+				fly.src = "./images/bee.png";
 
-				context.drawImage(doubleJump,this.position.x, this.position.y, 50, 50);
+				context.drawImage(fly,this.position.x, this.position.y, 50, 50);
+			}
+
+			if(this.power == 6){
+				var triple_bomb = new Image();
+				triple_bomb.src = "./images/triple_bomb.png";
+
+				context.drawImage(triple_bomb,this.position.x, this.position.y, 50, 50);
 			}
 
 	}
@@ -399,6 +406,7 @@ class Player{
 		this.ActionHit = false;
 		this.actionHold = false;
 		this.actionPause = false;
+		this.time_pressed = 0;
 		this.up = false;
 		this.down = false;
 		this.direction = "right";
@@ -528,9 +536,13 @@ class Player{
 				this.life += 50;
 			}
 
-			//adding double jump
-			if(this.power == 6){
+			//make player fly
+			if(this.power == 5){
 				this.maxJump += 1;
+			}
+
+			if(this.power == 6){
+				this.max_bombs = 3;
 			}
 
 			for (var id = 0; id < obstacle_list.length; id++){
@@ -619,7 +631,7 @@ class Player{
 	}
 
 	bomb(){
-		if(this.number_of_bombs < this.max_bombs){
+		if(this.number_of_bombs <= this.max_bombs - 1){
 			var newBomb = new Bomb(this.id, this.position.x, this.position.y + this.height/2);
 
 			bombs_list.push(newBomb);
@@ -654,7 +666,7 @@ function main(){
 	//Count time of game
 	game_time = new Game_time(0, 0);
 	game_end = new Game_time(3, 0);
-	level_start = new Game_time(0, 10);
+	level_start = new Game_time(0, 1);
 
 	//Time function
 	setInterval(function () {
@@ -821,6 +833,7 @@ function refresh_time(){
 					} else{
 						actual_player.color = actual_player.oldColor;
 						actual_player.maxJump = maxJump;
+						actual_player.max_bombs = 1;
 
 					}
 						actual_player.power = 0;
@@ -879,18 +892,35 @@ function addPowerBox(){
 
 //Move the player
 function move(){
-	pause = false;
 	for (var id = 0; id < players_list.length; id++){
 		var actual_player = players_list[id];
 
 		if(actual_player.actionPause){
-				if(pause == false && level_started == true){
-					pause = true;
+			console.log(actual_player.time_pressed);
+			if(actual_player.time_pressed >= 2 && actual_player.time_pressed <= 50){
+				actual_player.time_pressed += 1;
+			} else{
+				actual_player.time_pressed = 0;
+			}
+
+				if(level_started == true && (actual_player.time_pressed <= 1 || actual_player.time_pressed >= 50)){
+					actual_player.time_pressed = 2;
+					if(pause){
+						pause = false;
+					} else{
+						pause = false;
+					}
+				} else {
+					console.log("wait");
 				}
 
 			actual_player.actionPause = false;
+		}
 
-		} else if(actual_player.actionRight && pause == false){
+
+
+
+		if(actual_player.actionRight && pause == false){
 			actual_player.position.right();
 			actual_player.direction = "right";
 
@@ -929,6 +959,15 @@ function move(){
 //////////////////////////////////////////////////Playing game///////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 function refresh(stop){
+
+	//Displaye pause Menu
+	if(pause){
+		var modal_pause = document.getElementById('modal_pause');
+		modal_pause.style.display = "block";
+	} else{
+		var modal_pause = document.getElementById('modal_pause');
+		modal_pause.style.display = "none";
+	}
 
 	if(game_end.minute == 0 && game_end.second == 0 || level_win){
 		var modal_game_end = document.getElementById("game_end");
@@ -1202,7 +1241,6 @@ function receiveAjax_commands(serverData) {
 
 //Processing commands
 function commands(){
-
 	for(var i = 0; i < commands_list.length; i++){
 		var value = commands_list[i].split(',');
 		var command = value[1];
@@ -1226,14 +1264,26 @@ function commands(){
 					players_list[id].up = true;
 				}	else if(command == "down"){
 					players_list[id].down = false;
-				} else if(command == "pause"){
-					players_list[id].actionPause = true;
+				} else if(command == "action_leave" && pause){
+
+				} else if(command == "action_menu" && pause){
+					window.location.replace("../menu/");
+				} else if(command == "action_refresh" && pause){
+					window.location.replace("./");
 				}
 			}
 		}
+		if(command == "action_pause" && canPause){
+			canPause = false;
+			pause = !pause;
+			setTimeout(function () {ResetPause();}, 500);
+		}
 	}
-
 	commands_list = [];
+}
+function  ResetPause ()
+{
+	canPause = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1273,6 +1323,19 @@ main();
 					</tr>
 					<tr>
 						<td> Press Start to restart level </td>
+					</tr>
+				</table>
+		</div>
+
+		<div class="modal_pause"  id="modal_pause">
+				<table class="menu" id="pause">
+
+					<tr>
+						<td> Press Start to restart level </td>
+					</tr>
+
+					<tr>
+						<td> Press Main menu to quit game </td>
 					</tr>
 				</table>
 		</div>
