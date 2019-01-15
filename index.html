@@ -722,6 +722,26 @@ function main(){
 	newPowerBox.color = "#FFFFFF";
 	power_boxs_list.push(newPowerBox);
 
+
+	background = new Image();
+	background.src = "./images/back.png";
+
+
+	//When image loaded
+	background.onload = function()
+	{
+		context.drawImage(background, 0, 0, width, height - 100);
+	}
+
+	//Drawing floor
+	var floor_draw = new Image();
+	floor_draw.src = "./images/platform.png";
+
+	floor_draw.onload = function()
+	{
+		context.drawImage(floor_draw,0, height - 100, width, 100);
+	}
+
 	play();
 	sound_back.play();
 
@@ -960,15 +980,6 @@ function move(){
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 function refresh(stop){
 
-	//Displaye pause Menu
-	if(pause){
-		var modal_pause = document.getElementById('modal_pause');
-		modal_pause.style.display = "block";
-	} else{
-		var modal_pause = document.getElementById('modal_pause');
-		modal_pause.style.display = "none";
-	}
-
 	if(game_end.minute == 0 && game_end.second == 0 || level_win){
 		var modal_game_end = document.getElementById("game_end");
 
@@ -1040,6 +1051,17 @@ function refresh(stop){
 
 //Function play is the function wich permit to the game to have an infinite loop
 function play(){
+
+	//Displaye pause Menu
+	if(pause){
+		var modal_pause = document.getElementById('modal_pause');
+		modal_pause.style.display = "block";
+	} else{
+		var modal_pause = document.getElementById('modal_pause');
+		modal_pause.style.display = "none";
+	}
+
+
 	if(pause == false){
 		refresh(stop);
 	}
@@ -1057,22 +1079,6 @@ function play(){
 }
 
 function draw(){
-	background = new Image();
-	background.src = "./images/back.png";
-
-
-	//When image loaded
-	background.onload = function()
-	{
-		context.drawImage(background, 0, 0, width, height - 100);
-	}
-
-	//Drawing floor
-	var floor_draw = new Image();
-	floor_draw.src = "./images/platform.png";
-
-	context.drawImage(floor_draw,0, height - 100, width, 100);
-
 
 	if(actual_status == "playing"){
 			jQuery("#menu").hide();
@@ -1100,20 +1106,26 @@ function draw(){
 	//Showing time to start level 1
 	if(level_start.second > 0 && actual_status == "playing" && actual_level == 0 && level_started == false){
 
-		context.fillStyle = "#8A0886";
-		context.fillRect(200, 50, width - 350, height - 200);
+			var marge = width/15;
+			var margeY = height/12;
+			var largeurX = width - marge;
+			var largeurY = height - marge;
+			var initX = (width -largeurX)/2;
+			var initY = (height -largeurY)/2;
+			context.fillStyle = "#8A0886";
+			context.fillRect(initX, initY, largeurX, largeurY);
 
-		context.fillStyle = "#FFFFFF";
-		context.font = 0.03 * width + "px Arial";
+			context.fillStyle = "#FFFFFF";
+			context.font = 0.03 * width + "px Arial";
+			context.textAlign = "center";
+			context.fillText("Level 1 : Anyone is your friend now.", width/2, height/2 - 3*margeY);
 
-		context.fillText("Level 1 : Anyone is your friend now.", width/2 - 500, 100);
+			context.fillText("Game : death match.", width/2, height/2 - 2*margeY);
 
-		context.fillText("Game : death match.", width/2 - 500, 175);
-
-		context.fillText("Kill the most players to win the game", width/2 - 500, 250);
+			context.fillText("Kill the most players to win the game", width/2, height/2 - 1*margeY);
 
 
-		context.fillText("Starting game in " + level_start.second + " seconds ", width/2 - 500, height/2);
+			context.fillText("Starting game in " + level_start.second + " seconds ", width/2, height/2);
 
 	}
 
@@ -1195,7 +1207,7 @@ function receiveAjax_commands(serverData) {
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 				//Actions before game start : "new player" and "start game"
-				if(val2.orders == "up" && actual_status == "play"){
+				if(val2.orders && actual_status == "play"){
 					actionSelect = true;
 				}
 				//TODO Change button start
@@ -1244,8 +1256,15 @@ function commands(){
 	for(var i = 0; i < commands_list.length; i++){
 		var value = commands_list[i].split(',');
 		var command = value[1];
-
 		var player_id = value[0];
+
+
+		if(command == "action_menu" && pause){
+			window.location.replace("../menu/");
+		} else if(command == "action_refresh" && pause){
+			window.location.replace("./");
+		}
+
 		for (var id = 0; id < players_list.length; id++){
 			if (player_id == players_list[id].id){
 				if(command == "right" && level_started){
@@ -1265,15 +1284,12 @@ function commands(){
 				}	else if(command == "down"){
 					players_list[id].down = false;
 				} else if(command == "action_leave" && pause){
-
-				} else if(command == "action_menu" && pause){
-					window.location.replace("../menu/");
-				} else if(command == "action_refresh" && pause){
-					window.location.replace("./");
+					var test = players_list.splice(id,id+1);
 				}
 			}
 		}
-		if(command == "action_pause" && canPause){
+
+		if(command == "action_pause" && canPause && level_started){
 			canPause = false;
 			pause = !pause;
 			setTimeout(function () {ResetPause();}, 500);
@@ -1306,7 +1322,7 @@ main();
 						<td> Instructions : connect your phone to the console </td>
 					</tr>
 					<tr>
-						<td> and press select to join the game ! </td>
+						<td> and press any key to join the game ! </td>
 					</tr>
 					<tr>
 						<td> Press Start to begin the game </td>
@@ -1322,22 +1338,26 @@ main();
 					<tr id="points">
 					</tr>
 					<tr>
-						<td> Press Start to restart level </td>
+						<td> Press Start to restart the game </td>
 					</tr>
 				</table>
 		</div>
 
-		<div class="modal_pause"  id="modal_pause">
-				<table class="menu" id="pause">
+		<div class="modal"  id="modal_pause">
+			<table class="menu">
 
-					<tr>
-						<td> Press Start to restart level </td>
-					</tr>
+				<tr>
+					<td> Game Paused </td>
+				</tr>
 
-					<tr>
-						<td> Press Main menu to quit game </td>
-					</tr>
-				</table>
+				<tr>
+					<td> Press Start to restart the game </td>
+				</tr>
+
+				<tr>
+					<td> Press Main menu to quit game </td>
+				</tr>
+			</table>
 		</div>
 
 	</body>
