@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 
 <html>
@@ -8,7 +7,7 @@
 		<link rel='stylesheet' type='text/css' href='./css/web.css' media='screen' />
 
 		<!-- Fichiers Javascripts -->
-	<script type='text/javascript' src='./js/jquery-2.0.3.min.js'></script>
+	<script type='text/javascript' src='./js/jquery-3.3.1.min.js'></script>
 
 		<!-- Encodage UTF8 pour les accents -->
 		<meta charset='UTF-8'>
@@ -43,9 +42,9 @@ $(document).ready(function(){
 //Declarations
 canvas = "", context = "", width = 0, height = 0, frames = 0, obstacle_list = [], commands_list = [], bombs_list = [], explosions_list = [], players_dead = 0, pause = false, canPause = true,
 players_list = [], power_boxs_list = [] , floor_position = 0, actual_status = "play", game_end = 0, nb_obstacles = 15, level_start = 0, level_started = false;
-game_velocity = 6, jump_force = 20, floor = "" , sprite_position = 0, winner_name = "anyone", winner_score = 0, actual_level = 0, gravity = 1, level_win = false, end_game_menu = false,
-maxJump = 1, background = "";
-actionSelect = startAction = false;
+game_velocity = 6, jump_force = 20, floor = "" , sprite_position = 0, winner_name = "nobody", winner_score = 0, actual_level = 0, gravity = 1, level_win = false, end_game_menu = false,
+maxJump = 1, background = "", lastPower = 0;
+actionSelect = startAction = false, started_interval = false;
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -142,8 +141,11 @@ class Explosion{
 					if(actual_player.power == 4 && actual_player.life >= 100){
 						actual_player.life == 100;
 					} else{
-						actual_player.life -= this.damage;
-						actual_player.position.y -= 20;
+						if(actual_player.can_damage){
+							actual_player.life -= this.damage;
+							actual_player.position.y -= 20;
+							actual_player.can_damage = false;
+						}
 					}
 
 					//Giving points to the player
@@ -151,16 +153,15 @@ class Explosion{
 						for (var id1 = 0; id1 < players_list.length; id1++){
 							var actual_player1 = players_list[id1];
 
-							if(actual_player1.id == this.id && actual_player1.id != actual_player.id){
+							if(actual_player1.id == this.id && actual_player1.id != actual_player.id && actual_player1.can_point){
 								actual_player1.score += 1;
+								actual_player1.can_point = false;
 							}
 						}
 					}
 				}
 			}
 		}
-
-
 	}
 }
 
@@ -179,13 +180,22 @@ class Power_Box{
 		this.velocity = 0;
 		this.gravity = 1;
 		this.nb_alea = Math.floor(width * Math.random());
+		this.power = 0;
+		lastPower = this.power;
 
 		this.color = "";
 		//Random position
 		this.position = new Position(this.nb_alea, 50);
 
 		//Random power
-		this.power = Math.floor(6 * Math.random());
+		do{
+			this.power = Math.floor(7 * Math.random());
+		} while(this.power == lastPower);
+
+		if(this.power != lastPower){
+			lastPower = this.power;
+		}
+
 		if(this.power == 0){
 			this.power = 1;
 		}
@@ -360,15 +370,18 @@ class Player{
 		this.id = id;
 		this.velocity = 0;
 		this.width = 50;
+		this.head_radius = this.width/2;
+		this.wheel_radius = this.width/2;
 		this.height = 100;
+		this.body_height = 20;
 		this.gravity = 0;
 		this.nb_alea = Math.floor(width * Math.random());
+		this.name_color = "#f90202";
+		this.oldColor =  "#f90202";
 		if(color == "default"){
 			this.color = "#FF0040";
-			this.oldColor = "#FF0040";
 		} else {
 			this.color = color;
-			this.oldColor = color;
 		}
 
 		this.position = new Position(this.nb_alea, 0);
@@ -389,6 +402,14 @@ class Player{
 		this.max_bombs = 1;
 		this.bomb_time = 5;
 		this.maxJump = maxJump;
+		this.ouverture_haut = 1.2;
+		this.ouverture_bas = 0.8;
+		this.bouche_bas = 0.7;
+		this.bouche_haut = 1;
+		this.inverse = false;
+		this.can_damage = false;
+		this.can_point = false;
+		this.can_hit = false;
 
 
 		//name
@@ -409,63 +430,148 @@ class Player{
 		this.time_pressed = 0;
 		this.up = false;
 		this.down = false;
-		this.direction = "right";
+		this.direction = "left";
 		this.hitting = false;
+
+		//Left
+		this.open_up = 1.2;
+		this.open_down = 0.8;
+		this.mouth_down = 0.7;
+		this.mouth_up = 1;
+		this.inverse = false;
+		this.turn_wheel = 0;
 	}
 
 	draw_player(){
-		if(this.direction == "right"){
-			if(this.actionRight){
-				this.stepRight += 0.2;
-				this.actionRight = false;
-			}
-			if(this.stepRight >= 6){
-				this.stepRight = 1;
-			}
-
-			if(this.hitting){
-				var right = new Image();
-				right.src = "./images/hitRight/hitRight.png";
-
-				context.drawImage(right, this.position.x, this.position.y, 2 * this.width, this.height);
-			} else{
-				var right = new Image();
-				right.src = "./images/right/" + Math.floor(this.stepRight) + ".png";
-
-				context.drawImage(right, this.position.x, this.position.y, this.width, this.height);
-			}
+	///////////////Open and close mouth if////////////
+		if(this.mouth_down < 0.98 && this.mouth_up > 1 && this.inverse == false){
+				this.mouth_down += 0.02;
+				this.mouth_up -= 0.02;
+		} else {
+			this.inverse = true;
 		}
 
+		if(this.inverse == true){
+			this.mouth_down -= 0.02;
+			this.mouth_up += 0.02;
+		}
+
+		if(this.mouth_down < this.open_down && this.mouth_up > this.open_up){
+			this.mouth_down = this.open_down;
+			this.mouth_up = this.open_up;
+			this.inverse = false;
+		}
+	///////////////////////////////////////////////////////
+	//Permit to turn the wheel
+	if(this.turn_wheel > 2 * Math.PI){
+		this.turn_wheel = 0;
+	}
+
+	//wheel
+	context.beginPath();
+	context.lineWidth = 10;
+
+	//Wheel's color
+	context.fillStyle = "#f92452";
+
+	//wheel
+	context.arc(this.position.x + this.width/2, this.position.y + this.height - this.wheel_radius, this.wheel_radius, (this.turn_wheel + 0.057) * Math.PI, this.turn_wheel * Math.PI);
+
+	//Body
+	context.moveTo(this.position.x + this.width/2 , this.position.y + this.height - 2 * this.wheel_radius);
+	context.lineTo(this.position.x + this.width/2, this.position.y + this.height - 2 * this.wheel_radius - this.body_height);
+
+	context.fill();
+
+	//Head's color
+	context.fillStyle = this.color;
+
+	//arms
+	if(this.ActionHit && this.can_hit){
 		if(this.direction == "left"){
-			if(this.actionLeft){
-				this.stepLeft -= 0.2;
-				this.actionLeft = false;
-			}
-			if(this.stepLeft <= -6){
-				this.stepLeft = -1;
-			}
-
-			if(this.hitting){
-				var left = new Image();
-				left.src = "./images/hitLeft/hitLeft.png";
-
-				context.drawImage(left, this.position.x - this.width, this.position.y, 2 * this.width, this.height);
-			} else{
-				var left = new Image();
-				left.src = "./images/left/" + Math.floor(this.stepLeft) + ".png";
-
-				context.drawImage(left, this.position.x, this.position.y, this.width, this.height);
-			}
+			//left
+			context.moveTo(this.position.x + this.width/2, this.position.y + this.height - 2 * this.wheel_radius - this.body_height);
+			context.lineTo(this.position.x + this.width/2 - 50, this.position.y + this.height - 2 * this.wheel_radius - this.body_height);
+			//Right
+			context.moveTo(this.position.x + this.width/2, this.position.y + this.height - 2 * this.wheel_radius - this.body_height);
+			context.lineTo(this.position.x + this.width/2 + 30, this.position.y + this.height - 2 * this.wheel_radius - this.body_height  + 20);
 		}
 
+		if(this.direction == "right"){
+			//left
+			context.moveTo(this.position.x + this.width/2, this.position.y + this.height - 2 * this.wheel_radius - this.body_height);
+			context.lineTo(this.position.x + this.width/2 - 30, this.position.y + this.height - 2 * this.wheel_radius - this.body_height + 20);
+			//Right
+			context.moveTo(this.position.x + this.width/2, this.position.y + this.height - 2 * this.wheel_radius - this.body_height);
+			context.lineTo(this.position.x + this.width/2 + 50, this.position.y + this.height - 2 * this.wheel_radius - this.body_height);
+		}
 
-		context.fillStyle = this.color;
+	} else{
+		//left
+		context.moveTo(this.position.x + this.width/2, this.position.y + this.height - 2 * this.wheel_radius - this.body_height);
+		context.lineTo(this.position.x + this.width/2 - 30, this.position.y + this.height - 2 * this.wheel_radius - this.body_height + 20);
+		//Right
+		context.moveTo(this.position.x + this.width/2, this.position.y + this.height - 2 * this.wheel_radius - this.body_height);
+		context.lineTo(this.position.x + this.width/2 + 30, this.position.y + this.height - 2 * this.wheel_radius - this.body_height  + 20);
+	}
+
+	context.stroke();
+	context.closePath();
+
+
+	//Going to right
+	if(this.direction == "right"){
+		//Turn wheel
+		if(this.turn_wheel < 2 * Math.PI && this.actionRight){
+			this.turn_wheel += 0.1;
+		}
+
+		//Head
+		context.beginPath();
+		context.lineWidth = 1;
+		context.arc(this.position.x + this.width/2, this.position.y + this.height - 2 * this.wheel_radius - this.body_height - this.head_radius, this.head_radius, (this.mouth_up + 0.8) * Math.PI, (this.mouth_down - 0.8) * Math.PI, true);
+		context.lineTo(this.position.x + this.width/2, this.position.y + this.height - 2 * this.wheel_radius - this.body_height - this.head_radius);
+		context.fill();
+		context.stroke();
+		context.closePath();
+		this.actionRight = false;
+	}
+
+	//Going to left
+	if(this.direction == "left"){
+		//Turn wheel
+		if(this.turn_wheel < 2 * Math.PI && this.actionLeft){
+			this.turn_wheel -= 0.1;
+		}
+
+		//Head
+		context.beginPath();
+		context.lineWidth = 1;
+		context.arc(this.position.x + this.width/2, this.position.y + this.height - 2 * this.wheel_radius - this.body_height - this.head_radius, this.head_radius, this.mouth_up * Math.PI, this.mouth_down * Math.PI);
+		context.lineTo(this.position.x + this.width/2, this.position.y + this.height - 2 * this.wheel_radius - this.body_height - this.head_radius);
+		context.fill();
+		context.stroke();
+		context.closePath();
+		this.actionLeft = false;
+	}
+
+
+
+		//Eye
+		context.beginPath();
+		context.arc(this.position.x + this.width/2, this.position.y + this.height - 2 * this.wheel_radius - this.body_height - this.head_radius - this.width/4, 2, 0, 2 * Math.PI);
+		context.stroke();
+		context.closePath();
+
+
+
+		context.fillStyle = this.name_color;
 		context.font = "20px Arial";
 
 		if(this.life > 0){
 			context.font = 20 + "px Arial";
-			context.fillText(this.name, this.name_position.x, this.name_position.y);
-			context.fillText(this.life, this.name_position.x, this.name_position.y + 20);
+			context.fillText(this.name, this.name_position.x + 10, this.name_position.y);
+			context.fillText(this.life, this.name_position.x + 10, this.name_position.y + 20);
 
 			var health = new Image();
 			health.src = "./images/health.png";
@@ -473,6 +579,7 @@ class Player{
 			context.drawImage(health,this.name_position.x + 40, this.name_position.y, 20, 20);
 
 		} else{
+			context.textAlign = "left";
 			context.fillText(this.name + " reappearing in : " + this.time_reappear + " sec", 50, this.y_reappear + this.death_position * 30);
 		}
 
@@ -486,7 +593,7 @@ class Player{
 
 		if(this.life > 0){
 			//Refresh name position
-			this.name_position.y = this.position.y - 25;
+			this.name_position.y = this.position.y - 2 * this.head_radius;
 			this.name_position.x = this.position.x;
 
 
@@ -510,7 +617,7 @@ class Player{
 					if(this.position.x <= (actual_power_box.position.x + 50) && (this.position.x + 50) >= actual_power_box.position.x){
 						if((this.position.y + this.height) > actual_power_box.position.y && this.position.y < (actual_power_box.position.y + 50)){
 							if(actual_power_box.power != 3){
-								this.color = actual_power_box.color;
+								this.name_color = actual_power_box.color;
 							}
 							this.power = actual_power_box.power;
 							power_boxs_list.splice(i, i+1);
@@ -605,9 +712,11 @@ class Player{
 			actual_player.id != this.id &&
 			this.direction == "right"){
 
+
 				actual_player.life = actual_player.life - this.damage;
-				if(actual_player.life <= 0 && actual_player.time_reappear == 5){
-					this.score += 0.5;
+				if(actual_player.life <= 0 && actual_player.time_reappear == 5 && actual_player.can_point){
+					this.score += 1;
+					actual_player.can_point = false;
 				}
 				actual_player.position.y = actual_player.position.y - 5;
 				actual_player.position.right();
@@ -647,7 +756,7 @@ class Player{
 				actual_player.life = 100;
 				actual_player.position.y = 0;
 				actual_player.position.x = width/2;
-				actual_player.color = actual_player.oldColor;
+				actual_player.name_color = actual_player.oldColor;
 				actual_player.power = 0;
 				actual_player.time_reappear = 5;
 				actual_player.death_position = 0;
@@ -691,12 +800,12 @@ function main(){
 
 	//adding 1 power box each 30 sec
 	setInterval(function () {
-		if(pause == false){
+		if(pause == false && level_started){
 			addPowerBox();
 		} else{
 			//
 		}
-	}, 15000);
+	}, 10000);
 
 	//Creating the canvas
 	canvas = document.createElement("canvas");
@@ -711,39 +820,9 @@ function main(){
 	//Adding canvas to html
 	document.body.appendChild(canvas);
 
-
-	//TODO: test
-	var new_player = new Player(155, "player15", "#FF00FF");
-	players_list.push(new_player);
-
-	//TODO: test
-	var newPowerBox = new Power_Box();
-	newPowerBox.power = 6;
-	newPowerBox.color = "#FFFFFF";
-	power_boxs_list.push(newPowerBox);
-
-
-	background = new Image();
-	background.src = "./images/back.png";
-
-
-	//When image loaded
-	background.onload = function()
-	{
-		context.drawImage(background, 0, 0, width, height - 100);
-	}
-
-	//Drawing floor
-	var floor_draw = new Image();
-	floor_draw.src = "./images/platform.png";
-
-	floor_draw.onload = function()
-	{
-		context.drawImage(floor_draw,0, height - 100, width, 100);
-	}
-
 	play();
 	sound_back.play();
+
 
 }
 
@@ -791,10 +870,6 @@ function level_one(){
 	}
 }
 
-
-// function level_two(){
-// 	console.log("sdfmldkf");
-// }
 
 function refresh_time(){
 	if(actual_status == "playing" && level_started){
@@ -851,7 +926,7 @@ function refresh_time(){
 							actual_player.power = 0;
 						}
 					} else{
-						actual_player.color = actual_player.oldColor;
+						actual_player.name_color = actual_player.oldColor;
 						actual_player.maxJump = maxJump;
 						actual_player.max_bombs = 1;
 
@@ -916,7 +991,6 @@ function move(){
 		var actual_player = players_list[id];
 
 		if(actual_player.actionPause){
-			console.log(actual_player.time_pressed);
 			if(actual_player.time_pressed >= 2 && actual_player.time_pressed <= 50){
 				actual_player.time_pressed += 1;
 			} else{
@@ -931,7 +1005,7 @@ function move(){
 						pause = false;
 					}
 				} else {
-					console.log("wait");
+
 				}
 
 			actual_player.actionPause = false;
@@ -957,7 +1031,6 @@ function move(){
 
 		} else if(actual_player.ActionHit && pause == false){
 				actual_player.hit();
-				actual_player.ActionHit = false;
 
 		} else if(actual_player.actionHold){
 				//TODO: hold
@@ -1051,6 +1124,24 @@ function refresh(stop){
 
 //Function play is the function wich permit to the game to have an infinite loop
 function play(){
+	if(!started_interval){
+		//Damage, points and hit control
+		setInterval(function () {
+			for (var id = 0; id < players_list.length; id++){
+				players_list[id].can_damage = true;
+				players_list[id].can_point = true;
+				players_list[id].can_hit = true;
+			}
+		}, 200);
+
+		setInterval(function () {
+			for (var id = 0; id < players_list.length; id++){
+				players_list[id].can_hit = false;
+				players_list[id].ActionHit = false;
+			}
+		}, 500);
+		started_interval = true;
+	}
 
 	//Displaye pause Menu
 	if(pause){
@@ -1079,6 +1170,24 @@ function play(){
 }
 
 function draw(){
+
+		background = new Image();
+		background.src = "./images/back.png";
+
+		//When image loaded
+		background.onload = function()
+		{
+			context.drawImage(background, 0, 0, width, height - 100);
+		}
+
+		//Drawing floor
+		var floor_draw = new Image();
+		floor_draw.src = "./images/platform.png";
+
+		floor_draw.onload = function()
+		{
+			context.drawImage(floor_draw,0, height - 100, width, 100);
+		}
 
 	if(actual_status == "playing"){
 			jQuery("#menu").hide();
@@ -1118,7 +1227,7 @@ function draw(){
 			context.fillStyle = "#FFFFFF";
 			context.font = 0.03 * width + "px Arial";
 			context.textAlign = "center";
-			context.fillText("Level 1 : Anyone is your friend now.", width/2, height/2 - 3*margeY);
+			context.fillText("Level 1 : Nobody is your friend now.", width/2, height/2 - 3*margeY);
 
 			context.fillText("Game : death match.", width/2, height/2 - 2*margeY);
 
@@ -1233,16 +1342,31 @@ function receiveAjax_commands(serverData) {
 					}
 
 					if(!ifExist){
-						var new_player = new Player(val2.player_id, val2.name, val2.color);
+						var color = '#'+(Math.random()*0xFFFFFF<<0).toString(16);
+
+						var new_player = new Player(val2.player_id, val2.name, color);
 						players_list.push(new_player);
 
 						var menu_modal = document.getElementById("menu");
 
 						var player_name = document.createElement("h1");
+						player_name.id = "player_name"+val2.player_id;
+						player_name.style.borderColor = color;
+
 						var newContent = document.createTextNode(new_player.name);
+
+						//Name
 						player_name.appendChild(newContent);
 						menu_modal.appendChild(player_name);
+					} else{
+						var color = '#'+(Math.random()*0xFFFFFF<<0).toString(16);
+						for (var id = 0; id < players_list.length; id++){
+							players_list[id].color = color;
+
+							var player_name = document.getElementById('player_name'+players_list[id].id);
+							player_name.style.borderColor = color;
 						}
+					}
 					}
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 				}
@@ -1284,7 +1408,7 @@ function commands(){
 				}	else if(command == "down"){
 					players_list[id].down = false;
 				} else if(command == "action_leave" && pause){
-					var test = players_list.splice(id,id+1);
+					var test = players_list.splice(id,id);
 				}
 			}
 		}
