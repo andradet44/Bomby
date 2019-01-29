@@ -666,9 +666,9 @@ class Player{
 
 				//Collision by bottom
 				if(this.position.x + 50 > (actual_obstacle.position.x + 5) && (this.position.x) <= (actual_obstacle.position.x + actual_obstacle.width - 5)){
-					if((this.position.y) <= (actual_obstacle.position.y + actual_obstacle.height) && (this.position.y + this.height) > (actual_obstacle.position.y)){
+					if((this.position.y-20) <= (actual_obstacle.position.y + actual_obstacle.height) && (this.position.y + this.height) > (actual_obstacle.position.y)){
 						this.velocity += this.gravity;
-						this.position.y = actual_obstacle.position.y + actual_obstacle.height;
+						this.position.y = actual_obstacle.position.y + actual_obstacle.height+20;
 					}
 				}
 		}
@@ -822,8 +822,6 @@ function main(){
 
 	play();
 	sound_back.play();
-
-
 }
 
 
